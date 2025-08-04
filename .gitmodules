@@ -1,0 +1,3 @@
+[submodule "_misc/FatCodex"]
+	path = _misc/FatCodex
+	url = https://github.com/fatpound/FatCodex
