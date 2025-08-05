@@ -12,8 +12,6 @@
 #include <string>
 #include <functional>
 
-#define GST_MP_FOR_QML
-
 GST_BEGIN_NAMESPACE
 
 class MediaPlayer
