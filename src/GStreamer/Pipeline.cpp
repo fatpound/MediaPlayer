@@ -150,7 +150,7 @@ auto Pipeline::S_BusCallback_(GstBus*, GstMessage* const msg, const gpointer dat
     //     break;
 
     case GST_MESSAGE_ASYNC_DONE:
-        if (pipeline.m_new_media_loaded_ and pipeline.m_media_change_callback_)
+        if (pipeline.m_new_media_loaded_ and pipeline.m_media_change_callback_ not_eq nullptr)
         {
             pipeline.m_new_media_loaded_ = false;
             pipeline.m_media_change_callback_();
@@ -479,7 +479,10 @@ void Pipeline::LoadAudio_(const std::string& uriPath) noexcept
     SetState_(GST_STATE_READY);
     Pause_();
 
-    m_media_change_callback_();
+    if (m_media_change_callback_ not_eq nullptr)
+    {
+        m_media_change_callback_();
+    }
 }
 
 void Pipeline::Play_() noexcept
