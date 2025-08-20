@@ -42,7 +42,7 @@ Pipeline::~Pipeline() noexcept
     try
     {
         g_print("Stopping MediaPlayer Pipeline...\n");
-        DispatchTask_({ .type = Task::Type::Quit, .name = {}, .pipeline = this });
+        DispatchTask_({ .type = Task::Type::Quit, .pipeline = this });
 
         m_worker_.join();
         g_print("[DONE]\n");
@@ -115,17 +115,17 @@ void Pipeline::LoadAudio(const std::string& uriPath) noexcept
 
 void Pipeline::Play() noexcept
 {
-    DispatchTask_({ .type = Task::Type::Play, .name = {}, .pipeline = this });
+    DispatchTask_({ .type = Task::Type::Play, .pipeline = this });
 }
 
 void Pipeline::Pause() noexcept
 {
-    DispatchTask_({ .type = Task::Type::Pause, .name = {}, .pipeline = this });
+    DispatchTask_({ .type = Task::Type::Pause, .pipeline = this });
 }
 
 void Pipeline::Seek(const std::size_t& pos, const bool& eosRewind) noexcept
 {
-    DispatchTask_({ .type = Task::Type::Seek, .name = {}, .seek_val = pos, .eos_rewind = eosRewind, .pipeline = this });
+    DispatchTask_({ .type = Task::Type::Seek, .seek_val = pos, .eos_rewind = eosRewind, .pipeline = this });
 }
 
 void Pipeline::SetStateChangedCallback(std::function<void(bool)> callback)

@@ -62,7 +62,7 @@ class Pipeline
         };
 
         Type           type = Type::None;
-        std::string    name;
+        std::string    name{};
         std::size_t    seek_val{};
         bool           eos_rewind{};
         Pipeline*      pipeline{};
