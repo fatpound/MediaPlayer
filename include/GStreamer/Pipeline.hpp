@@ -100,7 +100,7 @@ private:
     static auto S_BusCallback_(GstBus* bus, GstMessage* msg, gpointer data) noexcept -> gboolean;
     static auto S_TaskHandler_(gpointer data) noexcept -> gboolean;
 
-    static void S_PadAddedHandlerOf_uridecodebin_(GstElement* src, GstPad* new_pad, Data* data) noexcept;
+    static void S_PadAddedHandlerOf_uridecodebin_(GstElement* src, GstPad* newPad, Data* data) noexcept;
     static void S_ParseAndPrintError_(GstMessage* msg) noexcept;
 
 
