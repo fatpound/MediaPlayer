@@ -7,8 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_CXX_SCAN_FOR_MODULES FALSE)
 
-find_package(Qt6 REQUIRED COMPONENTS Quick)
-find_package(Qt6 REQUIRED COMPONENTS Core)
+find_package(Qt6 REQUIRED COMPONENTS Quick Core)
 
 qt_standard_project_setup(REQUIRES 6.8)
 
@@ -40,11 +39,14 @@ qt_add_executable(appMediaPlayer
 qt_add_qml_module(appMediaPlayer
     URI MediaPlayer
     VERSION 1.0
+    RESOURCES
+        resources.qrc
     QML_FILES
         Main.qml
         MPProgressBar.qml
-    RESOURCES
-        resources.qrc
+        MPPlaybackControls.qml
+        MPMenuBar.qml
+        MPContentView.qml
 )
 
 include(_misc/FatCodex/CompileOptions.cmake)
@@ -86,9 +88,10 @@ set_target_properties(appMediaPlayer PROPERTIES
 )
 
 target_link_libraries(appMediaPlayer
-    PRIVATE Qt6::Quick
+    PRIVATE
+        Qt6::Core
+        Qt6::Quick
 )
-target_link_libraries(appMediaPlayer PRIVATE Qt6::Core)
 
 include(GNUInstallDirs)
 install(TARGETS appMediaPlayer
