@@ -54,6 +54,12 @@ auto MediaPlayerWrapper::isPlaying() const -> bool
 void MediaPlayerWrapper::loadAudio(const QString& uriPath)
 {
     m_player_.LoadAudio(QString::fromUtf8(QUrl{ uriPath }.toEncoded()).toStdString());
+
+    if (not m_media_loaded_)
+    {
+        m_position_timer_.start();
+        m_media_loaded_ = true;
+    }
 }
 
 void MediaPlayerWrapper::play()
@@ -73,7 +79,7 @@ void MediaPlayerWrapper::seek(const qint64& pos)
 
 void MediaPlayerWrapper::fullRewind()
 {
-    m_player_.Seek(0U);
+    seek(0U);
 }
 
 
@@ -93,15 +99,6 @@ void MediaPlayerWrapper::onPlayerStateChanged_(const bool playing)
 {
     m_is_playing_ = playing;
     emit playingChanged();
-
-    if (isPlaying())
-    {
-        m_position_timer_.start();
-    }
-    else
-    {
-        m_position_timer_.stop();
-    }
 }
 
 void MediaPlayerWrapper::onDurationChanged_()

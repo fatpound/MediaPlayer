@@ -51,7 +51,9 @@ private:
     gstreamer::MediaPlayer   m_player_;
     QTimer                   m_position_timer_;
     qint64                   m_last_position_{ -1 };
+
     bool                     m_is_playing_{};
+    bool                     m_media_loaded_{};
 
 
 private slots:
