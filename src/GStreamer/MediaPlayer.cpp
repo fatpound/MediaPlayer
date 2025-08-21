@@ -1,4 +1,7 @@
 #include <GStreamer/MediaPlayer.hpp>
+
+#include <_macros/Logging.hpp>
+
 #include <QDebug>
 #include <QUrl>
 #include <QString>
@@ -7,12 +10,12 @@ GST_BEGIN_NAMESPACE
 
 MediaPlayer::MediaPlayer()
 {
-    g_print("Starting MediaPlayer...\n");
+    MP_PRINT("Starting MediaPlayer...\n");
 }
 
 MediaPlayer::~MediaPlayer()
 {
-    g_print("Shutting down MediaPlayer...\n");
+    MP_PRINT("Shutting down MediaPlayer...\n");
 }
 
 
