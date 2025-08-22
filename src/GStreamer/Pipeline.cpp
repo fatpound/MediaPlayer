@@ -8,20 +8,20 @@
 #include <stdexcept>
 #include <new>
 
-//                                                              +----------------+
-//                                                         +--->|    identity    |-------------------------------------------------+
-//                                                         |    +----------------+                                                 |
-//                                                         |                                                                       |
-// +--------------+    +-----------------------+           |                                                                       v
-// | uridecodebin |--->| audioconvert/resample |-->|  tee  |                                                                       +----------------+    +---------------+
-// +--------------+    +-----------------------+           |                                                                       | input-selector |--->| autoaudiosink |
-//                                                         |                                                                       +----------------+    +---------------+
-//                                                         |                                                                       ^
-//                                                         |                                                                       |
-//                                                         |    +-------------+    +-------+    +-----------------+    +-----------+
-//                                                         +--->| valve_pitch |--->| pitch |--->| valve_audioecho |--->| audioecho |
-//                                                              +-------------+    +-------+    +-----------------+    +-----------+
 //
+//                                                              +----------------+
+//                                                         +--->|    identity    |----------------------------------------------------->|queue|---+
+//                                                         |    +----------------+                                                                |
+//                                                         |                                                                                      |
+// +--------------+    +-----------------------+           |                                                                                      v
+// | uridecodebin |--->| audioconvert/resample |-->|  tee  |                                                                                      +----------------+    +---------------+
+// +--------------+    +-----------------------+           |                                                                                      | input-selector |--->| audiosink |
+//                                                         |                                                                                      +----------------+    +---------------+
+//                                                         |                                                                                      ^
+//                                                         |                                                                                      |
+//                                                         |    +-------------+    +-------+    +-----------------+    +-----------+              |
+//                                                         +--->| valve_pitch |--->| pitch |--->| valve_audioecho |--->| audioecho |--->|queue|---+
+//                                                              +-------------+    +-------+    +-----------------+    +-----------+
 //
 
 GST_BEGIN_NAMESPACE
@@ -313,9 +313,8 @@ void Pipeline::Setup_() noexcept
     SetState_(GST_STATE_NULL);
     SetState_(GST_STATE_READY);
 
-    g_object_set(m_data_.input_selector, "active-pad", m_data_.wet_path_pad, nullptr);
-
     // demo
+    g_object_set(m_data_.input_selector, "active-pad", m_data_.wet_path_pad, nullptr);
     g_object_set(m_data_.pitch, "pitch", 1.2, nullptr);
 
     MP_PRINT("Pipeline built successfully.\n");
@@ -331,10 +330,15 @@ void Pipeline::SetupElements_() noexcept
     }
 
 
+#ifdef FATLIB_BUILDING_ON_WINDOWS
+    MP_MAKE_GST_ELEMENT_FOR_CUSTOM_DATA(audiosink,      wasapisink,           1);
+#else
+    MP_MAKE_GST_ELEMENT_FOR_CUSTOM_DATA(audiosink,      autoaudiosink,        1);
+#endif
+
     MP_MAKE_GST_ELEMENT_FOR_CUSTOM_DATA(uridecodebin,   uridecodebin,         1);
     MP_MAKE_GST_ELEMENT_FOR_CUSTOM_DATA(audioconvert,   audioconvert,         1);
     MP_MAKE_GST_ELEMENT_FOR_CUSTOM_DATA(audioresample,  audioresample,        1);
-    MP_MAKE_GST_ELEMENT_FOR_CUSTOM_DATA(autoaudiosink,  autoaudiosink,        1);
     MP_MAKE_GST_ELEMENT_FOR_CUSTOM_DATA(tee,            tee,                  1);
     MP_MAKE_GST_ELEMENT_FOR_CUSTOM_DATA(input_selector, input-selector,       1);
     MP_MAKE_GST_ELEMENT_FOR_CUSTOM_DATA(identity,       identity,             1);
@@ -346,8 +350,11 @@ void Pipeline::SetupElements_() noexcept
     MP_MAKE_GST_ELEMENT_FOR_CUSTOM_DATA(queue_wet,      queue,            wet-1);
 
 
-#undef MP_MAKE_NAMED_ELEMENT
-#undef MP_MAKE_ELEMENT
+#undef MP_MAKE_GST_ELEMENT_FOR_CUSTOM_DATA
+
+#ifdef FATLIB_BUILDING_ON_WINDOWS
+    g_object_set(m_data_.audiosink, "low-latency", true, nullptr);
+#endif
 }
 
 void Pipeline::SetupBusWatch_() noexcept
@@ -381,7 +388,7 @@ void Pipeline::SetupBin_() noexcept
         m_data_.post_convert,
         m_data_.post_resample,
         m_data_.input_selector,
-        m_data_.autoaudiosink,
+        m_data_.audiosink,
         nullptr
     );
 }
@@ -400,7 +407,7 @@ void Pipeline::SetupLinks_() noexcept
     MP_GST_ELEMENT_LINK_MANY_WITH_LOGS(m_data_.audioconvert, m_data_.audioresample, m_data_.tee);
     MP_GST_ELEMENT_LINK_MANY_WITH_LOGS(m_data_.queue_dry, m_data_.identity);
     MP_GST_ELEMENT_LINK_MANY_WITH_LOGS(m_data_.queue_wet, m_data_.valve_pitch, m_data_.pitch, m_data_.post_convert, m_data_.post_resample);
-    MP_GST_ELEMENT_LINK_MANY_WITH_LOGS(m_data_.input_selector, m_data_.autoaudiosink);
+    MP_GST_ELEMENT_LINK_MANY_WITH_LOGS(m_data_.input_selector, m_data_.audiosink);
 
 
 #undef MP_GST_ELEMENT_LINK_MANY_WITH_LOGS
@@ -546,10 +553,6 @@ void Pipeline::Seek_(const std::size_t& pos, const bool& eosRewind) noexcept
         return;
     }
 
-    const auto& priorState = GetState_();
-
-    Pause_();
-
     MP_PRINT("Seeking to %lld ... ", pos);
     if (gst_element_seek_simple(
             m_pPipeline_,
@@ -562,9 +565,9 @@ void Pipeline::Seek_(const std::size_t& pos, const bool& eosRewind) noexcept
     }
     MP_PRINT("[DONE]\n");
 
-    if (priorState == GST_STATE_PLAYING and not eosRewind)
+    if (eosRewind)
     {
-        Play_();
+        Pause();
     }
 }
 

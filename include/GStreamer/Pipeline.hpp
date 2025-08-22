@@ -29,7 +29,7 @@ class Pipeline
         GstElement* uridecodebin{};
         GstElement* audioconvert{};
         GstElement* audioresample{};
-        GstElement* autoaudiosink{};
+        GstElement* audiosink{};
 
         GstElement* tee{};
         GstElement* input_selector{};
