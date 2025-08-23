@@ -36,9 +36,22 @@ Item {
     }
 
     MouseArea {
-        anchors.fill: parent
-        onClicked: (mouseEvent) => {
-            seekRequested(mouseEvent.x / width)
+            anchors.fill: parent
+
+            onPressed: (mouse) => {
+                let ratio = mouse.x / progressBarItem.width
+                ratio = Math.max(0, Math.min(1, ratio)) // 0–1 arası kısıtla
+                progressBarItem.progress = ratio
+                seekRequested(ratio)
+            }
+
+            onPositionChanged: (mouse) => {
+                if (pressed) {
+                    let ratio = mouse.x / progressBarItem.width
+                    ratio = Math.max(0, Math.min(1, ratio))
+                    progressBarItem.progress = ratio
+                    seekRequested(ratio)
+                }
+            }
         }
-    }
 }
