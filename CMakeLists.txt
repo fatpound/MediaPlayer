@@ -13,7 +13,7 @@ qt_standard_project_setup(REQUIRES 6.8)
 
 qt_add_resources(MEDIA_RESOURCES resources.qrc)
 
-qt_add_executable(appMediaPlayer
+qt_add_executable(MediaPlayer
 
     include/GStreamer/CommonUtilities.hpp
     include/GStreamer/MediaPlayer.hpp
@@ -36,7 +36,7 @@ qt_add_executable(appMediaPlayer
     ${MEDIA_RESOURCES}
 )
 
-qt_add_qml_module(appMediaPlayer
+qt_add_qml_module(MediaPlayer
     URI MediaPlayer
     VERSION 1.0
     RESOURCES
@@ -53,7 +53,7 @@ include(_misc/FatCodex/CompileOptions.cmake)
 
 set(GSTREAMER_ROOT $ENV{GSTREAMER_1_0_ROOT_MSVC_X86_64})
 
-target_include_directories(appMediaPlayer
+target_include_directories(MediaPlayer
     PUBLIC
         ${PROJECT_SOURCE_DIR}/_macros
         ${PROJECT_SOURCE_DIR}/include
@@ -63,12 +63,12 @@ target_include_directories(appMediaPlayer
         ${GSTREAMER_ROOT}/lib/glib-2.0/include
 )
 
-target_link_directories(appMediaPlayer
+target_link_directories(MediaPlayer
     PUBLIC
         ${GSTREAMER_ROOT}/lib
 )
 
-target_link_libraries(appMediaPlayer
+target_link_libraries(MediaPlayer
     PRIVATE
         FatCodex::CompileOptions
         glib-2.0.lib
@@ -79,22 +79,22 @@ target_link_libraries(appMediaPlayer
 # Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.
 # If you are developing for iOS or macOS you should consider setting an
 # explicit, fixed bundle identifier manually though.
-set_target_properties(appMediaPlayer PROPERTIES
-#    MACOSX_BUNDLE_GUI_IDENTIFIER com.example.appMediaPlayer
+set_target_properties(MediaPlayer PROPERTIES
+#    MACOSX_BUNDLE_GUI_IDENTIFIER com.example.MediaPlayer
     MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION}
     MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}
     MACOSX_BUNDLE TRUE
     WIN32_EXECUTABLE TRUE
 )
 
-target_link_libraries(appMediaPlayer
+target_link_libraries(MediaPlayer
     PRIVATE
         Qt6::Core
         Qt6::Quick
 )
 
 include(GNUInstallDirs)
-install(TARGETS appMediaPlayer
+install(TARGETS MediaPlayer
     BUNDLE DESTINATION .
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}

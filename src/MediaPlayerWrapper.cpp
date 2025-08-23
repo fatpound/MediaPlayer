@@ -4,6 +4,8 @@
 #include <QUrl>
 #include <QString>
 
+#include <cstddef>
+
 MP_BEGIN_NAMESPACE
 
 MediaPlayerWrapper::MediaPlayerWrapper(QObject *parent)
@@ -35,6 +37,7 @@ MediaPlayerWrapper::MediaPlayerWrapper(QObject *parent)
         &MediaPlayerWrapper::PollPosition_
     );
 }
+
 
 auto MediaPlayerWrapper::position() const -> qint64
 {
@@ -74,7 +77,7 @@ void MediaPlayerWrapper::pause()
 
 void MediaPlayerWrapper::seek(const qint64& pos)
 {
-    m_player_.Seek(pos);
+    m_player_.Seek(static_cast<std::size_t>(pos));
 }
 
 void MediaPlayerWrapper::fullRewind()

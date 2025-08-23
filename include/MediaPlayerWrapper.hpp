@@ -21,11 +21,18 @@ class MediaPlayerWrapper : public QObject
 public:
     explicit MediaPlayerWrapper(QObject* parent = nullptr);
 
+    explicit MediaPlayerWrapper(const MediaPlayerWrapper&)     = delete;
+    explicit MediaPlayerWrapper(MediaPlayerWrapper&&) noexcept = delete;
+
+    auto operator = (const MediaPlayerWrapper&)     -> MediaPlayerWrapper& = delete;
+    auto operator = (MediaPlayerWrapper&&) noexcept -> MediaPlayerWrapper& = delete;
+    ~MediaPlayerWrapper() noexcept = default;
+
 
 public:
-    Q_INVOKABLE bool isPlaying() const;
     Q_INVOKABLE qint64 position() const;
     Q_INVOKABLE qint64 duration() const;
+    Q_INVOKABLE bool isPlaying() const;
 
     Q_INVOKABLE void loadAudio(const QString &uriPath);
     Q_INVOKABLE void play();
