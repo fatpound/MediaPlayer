@@ -125,9 +125,9 @@ void Pipeline::Pause() noexcept
     DispatchTask_({ .type = Task::Type::Pause, .pipeline = this });
 }
 
-void Pipeline::Seek(const std::size_t& pos, const bool& eosRewind) noexcept
+void Pipeline::Seek(const std::size_t& pos) noexcept
 {
-    DispatchTask_({ .type = Task::Type::Seek, .seek_val = pos, .eos_rewind = eosRewind, .pipeline = this });
+    DispatchTask_({ .type = Task::Type::Seek, .seek_val = pos, .pipeline = this });
 }
 
 void Pipeline::SetStateChangedCallback(std::function<void(bool)> callback)
@@ -157,7 +157,8 @@ auto Pipeline::S_BusCallback_(GstBus*, GstMessage* const msg, const gpointer dat
 
     case GST_MESSAGE_EOS:
         MP_PRINT("End-Of-Stream reached.\n");
-        pipeline.Seek(0U, true);
+        pipeline.Seek(0U);
+        pipeline.Pause();
         break;
 
     case GST_MESSAGE_ERROR:
@@ -193,12 +194,12 @@ auto Pipeline::S_TaskHandler_(const gpointer data) noexcept -> gboolean
 
     switch (task.type)
     {
-    case Task::Type::BuildPipeline: pipeline.Setup_();                              break;
-    case Task::Type::LoadAudio:     pipeline.LoadAudio_(task.name);                 break;
-    case Task::Type::Play:          pipeline.Play_();                               break;
-    case Task::Type::Pause:         pipeline.Pause_();                              break;
-    case Task::Type::Seek:          pipeline.Seek_(task.seek_val, task.eos_rewind); break;
-    case Task::Type::Quit:          pipeline.Quit_();                               break;
+    case Task::Type::BuildPipeline: pipeline.Setup_();              break;
+    case Task::Type::LoadAudio:     pipeline.LoadAudio_(task.name); break;
+    case Task::Type::Play:          pipeline.Play_();               break;
+    case Task::Type::Pause:         pipeline.Pause_();              break;
+    case Task::Type::Seek:          pipeline.Seek_(task.seek_val);  break;
+    case Task::Type::Quit:          pipeline.Quit_();               break;
 
     default:
         MP_LOGWARN("Unhandled task type: %d\n", static_cast<int>(task.type));
@@ -537,7 +538,7 @@ void Pipeline::Pause_() noexcept
     SetState_(GST_STATE_PAUSED);
 }
 
-void Pipeline::Seek_(const std::size_t& pos, const bool& eosRewind) noexcept
+void Pipeline::Seek_(const std::size_t& pos) noexcept
 {
     MP_PRINT("Executing task: 'Seek'\n");
 
@@ -564,11 +565,6 @@ void Pipeline::Seek_(const std::size_t& pos, const bool& eosRewind) noexcept
         MP_PRINTERR("[FAILED]\n");
     }
     MP_PRINT("[DONE]\n");
-
-    if (eosRewind)
-    {
-        Pause();
-    }
 }
 
 void Pipeline::Quit_() noexcept

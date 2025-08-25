@@ -64,7 +64,6 @@ class Pipeline
         Type           type = Type::None;
         std::string    name{};
         std::size_t    seek_val{};
-        bool           eos_rewind{};
         Pipeline*      pipeline{};
     };
 
@@ -87,7 +86,7 @@ public:
     void LoadAudio (const std::string& uriPath) noexcept;
     void Play      () noexcept;
     void Pause     () noexcept;
-    void Seek      (const std::size_t& pos, const bool& eosRewind = false) noexcept;
+    void Seek      (const std::size_t& pos) noexcept;
 
     void SetStateChangedCallback (std::function<void(bool)> callback);
     void SetMediaChangedCallback (std::function<void()>     callback);
@@ -123,7 +122,7 @@ private:
     void LoadAudio_         (const std::string& uriPath) noexcept;
     void Play_              () noexcept;
     void Pause_             () noexcept;
-    void Seek_              (const std::size_t& pos, const bool& eosRewind) noexcept;
+    void Seek_              (const std::size_t& pos) noexcept;
     void Quit_              () noexcept;
 
     void DispatchTask_      (Task&& task) noexcept;
