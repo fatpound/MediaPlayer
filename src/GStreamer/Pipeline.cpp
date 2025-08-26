@@ -126,7 +126,7 @@ void Pipeline::AddEffect(std::unique_ptr<IEffectBin> pEffect)
         MP_PRINT("Linking: %s --> %s ... ", GST_ELEMENT_NAME(teePad), GST_ELEMENT_NAME(sinkPad));
         if (GST_PAD_LINK_FAILED(gst_pad_link(teePad, sinkPad)))
         {
-            MP_PRINTERR("[FAIL]\n");
+            MP_PRINTERR("[FAILED]\n");
             return;
         }
         MP_PRINT("[DONE]\n");
@@ -139,7 +139,7 @@ void Pipeline::AddEffect(std::unique_ptr<IEffectBin> pEffect)
         MP_PRINT("Linking: %s --> %s ... ", GST_ELEMENT_NAME(srcPad), GST_ELEMENT_NAME(selPad));
         if (GST_PAD_LINK_FAILED(gst_pad_link(srcPad, selPad)))
         {
-            MP_PRINTERR("[FAIL]\n");
+            MP_PRINTERR("[FAILED]\n");
             return;
         }
         MP_PRINT("[DONE]\n");
@@ -250,27 +250,27 @@ auto Pipeline::S_TaskHandler_(const gpointer data) noexcept -> gboolean
 void Pipeline::S_PadAddedHandlerOf_uridecodebin_([[maybe_unused]] GstElement* src, GstPad* newPad, Data* data) noexcept
 {
     MP_PRINT("S_PadAddedHandlerOf_uridecodebin_ has been called.\n");
-    MP_PRINT("Linking: '%s' '%s' pad to '%s' sink pad... ", GST_ELEMENT_NAME(src), GST_PAD_NAME(newPad), GST_ELEMENT_NAME(data->audioconvert));
+    MP_PRINT("Linking: '%s' '%s' pad to '%s' sink pad ... ", GST_ELEMENT_NAME(src), GST_PAD_NAME(newPad), GST_ELEMENT_NAME(data->audioconvert));
 
     GstPad*  const audioconvert_1_sink_pad = gst_element_get_static_pad(data->audioconvert, "sink");
     GstCaps* const new_pad_caps            = gst_pad_get_current_caps(newPad);
 
     if (gst_pad_is_linked(audioconvert_1_sink_pad))
     {
-        MP_PRINTERR("%s sink pad has already been linked. Ignoring.\n", GST_ELEMENT_NAME(data->audioconvert));
+        MP_PRINTERR("\n%s sink pad has already been linked. Ignoring.\n", GST_ELEMENT_NAME(data->audioconvert));
         goto exit;
     }
 
     if (const auto& new_pad_caps_type = gst_structure_get_name(gst_caps_get_structure(new_pad_caps, 0));
         g_str_has_prefix(new_pad_caps_type, "audio/x-raw") == FALSE)
     {
-        MP_PRINTERR("It has type '%s' which is not raw audio. Ignoring.\n", new_pad_caps_type);
+        MP_PRINTERR("\nIt has type '%s' which is not raw audio. Ignoring.\n", new_pad_caps_type);
         goto exit;
     }
 
     {
         [[maybe_unused]] const auto result = GST_PAD_LINK_FAILED(gst_pad_link(newPad, audioconvert_1_sink_pad));
-        MP_PRINT("%s\n", result ? "[FAIL]" : "[DONE]");
+        MP_PRINT("%s\n", result ? "[FAILED]" : "[DONE]");
     }
 
 
