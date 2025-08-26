@@ -1,0 +1,1 @@
+#include <GStreamer/IEffectBin.hpp>

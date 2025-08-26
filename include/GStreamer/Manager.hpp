@@ -9,6 +9,13 @@ class Manager final
 {
 public:
     explicit Manager(int& argc, char**& argv) noexcept;
+
+    explicit Manager()                   = delete;
+    explicit Manager(const Manager&)     = delete;
+    explicit Manager(Manager&&) noexcept = delete;
+
+    auto operator = (const Manager&)     -> Manager& = delete;
+    auto operator = (Manager&&) noexcept -> Manager& = delete;
     ~Manager() noexcept;
 
 

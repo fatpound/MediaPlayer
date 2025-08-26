@@ -5,19 +5,23 @@
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
 
-int main(int argc, char *argv[])
+// NOLINTBEGIN(readability-static-accessed-through-instance)
+
+auto main(int argc, char *argv[]) -> int
 {
     QGuiApplication app(argc, argv);
 
-    gstreamer::Manager gst_mgr{ argc, argv };
+    const gstreamer::Manager gst_mgr{ argc, argv };
 
     qmlRegisterType<media_player::MediaPlayerWrapper>("Custom.MediaPlayer", 1, 0, "MediaPlayerWrapper");
 
     QQmlApplicationEngine engine;
-    QObject::connect(&engine, &QQmlApplicationEngine::objectCreationFailed,
-                     &app, []() { QCoreApplication::exit(-1); },
-    Qt::QueuedConnection);
+
+    QObject::connect(&engine, &QQmlApplicationEngine::objectCreationFailed, &app, []() { QCoreApplication::exit(-1); }, Qt::QueuedConnection);
+
     engine.loadFromModule("MediaPlayer", "Main");
 
     return app.exec();
 }
+
+// NOLINTEND(readability-static-accessed-through-instance)

@@ -19,13 +19,16 @@ qt_add_executable(MediaPlayer
     include/GStreamer/MediaPlayer.hpp
     include/GStreamer/Manager.hpp
     include/GStreamer/Pipeline.hpp
+    include/GStreamer/IEffectBin.hpp
+    include/GStreamer/PitchEffectBin.hpp
     include/MediaPlayerWrapper.hpp
 
-    src/GStreamer/Manager.cpp
     src/GStreamer/MediaPlayer.cpp
+    src/GStreamer/Manager.cpp
     src/GStreamer/Pipeline.cpp
+    src/GStreamer/IEffectBin.cpp
+    src/GStreamer/PitchEffectBin.cpp
     src/MediaPlayerWrapper.cpp
-
     src/main.cpp
 
     _macros/Logging.hpp

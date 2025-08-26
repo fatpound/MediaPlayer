@@ -30,9 +30,13 @@ public:
 
 
 public:
+    // NOLINTBEGIN(modernize-use-trailing-return-type)
+
     Q_INVOKABLE qint64 position() const;
     Q_INVOKABLE qint64 duration() const;
     Q_INVOKABLE bool isPlaying() const;
+
+    // NOLINTEND(modernize-use-trailing-return-type)
 
     Q_INVOKABLE void loadAudio(const QString &uriPath);
     Q_INVOKABLE void play();

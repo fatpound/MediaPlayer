@@ -8,23 +8,17 @@
 #include <stdexcept>
 #include <new>
 
-//
-//                                                              +----------------+
-//                                                         +--->|    identity    |------------->|queue|---+
-//                                                         |    +----------------+                        |
-//                                                         |                                              |
-// +--------------+    +-----------------------+           |                                              v
-// | uridecodebin |--->| audioconvert/resample |-->|  tee  |                                              +----------------+    +---------------+
-// +--------------+    +-----------------------+           |                                              | input-selector |--->| audiosink     |
-//                                                         |                                              +----------------+    +---------------+
-//                                                         |                                              ^
-//                                                         |                                              |
-//                                                         |    +-------------+    +-------+              |
-//                                                         +--->| valve_pitch |--->| pitch |--->|queue|---+
-//                                                              +-------------+    +-------+
-//
-
 GST_BEGIN_NAMESPACE
+
+Pipeline::Pipeline(std::vector<std::unique_ptr<IEffectBin>> effects)
+    :
+    Pipeline()
+{
+    for (auto& effect : effects)
+    {
+        AddEffect(std::move<>(effect));
+    }
+}
 
 Pipeline::Pipeline()
     :
@@ -35,8 +29,8 @@ Pipeline::Pipeline()
     SetupGMainLoop_();
     DispatchTask_({ .type = Task::Type::BuildPipeline, .pipeline = this });
 
-    MP_PRINT("Worker thread is starting ... ");
-    m_start_signal_.release();
+    MP_PRINT("Worker thread will start soon...\n");
+    m_work_start_signal_.release();
 }
 
 Pipeline::~Pipeline() noexcept
@@ -113,6 +107,50 @@ void Pipeline::LoadAudio(const std::string& uriPath) noexcept
     {
         MP_PRINT("The audio had already been loaded.\n");
     }
+}
+
+void Pipeline::AddEffect(std::unique_ptr<IEffectBin> pEffect)
+{
+    m_setup_latch_.wait();
+
+    if (gst_bin_add(GST_BIN(m_pPipeline_), pEffect->GetBin()) == FALSE)
+    {
+        MP_PRINTERR("Could NOT add EffectBin to pipeline!\n");
+        return;
+    }
+
+    {
+        auto* const teePad  = gst_element_request_pad_simple(m_data_.tee, "src_%u");
+        auto* const sinkPad = pEffect->GetSinkPad();
+
+        MP_PRINT("Linking: %s --> %s ... ", GST_ELEMENT_NAME(teePad), GST_ELEMENT_NAME(sinkPad));
+        if (GST_PAD_LINK_FAILED(gst_pad_link(teePad, sinkPad)))
+        {
+            MP_PRINTERR("[FAIL]\n");
+            return;
+        }
+        MP_PRINT("[DONE]\n");
+    }
+
+    {
+        auto* const srcPad = pEffect->GetSrcPad();
+        auto* const selPad = gst_element_request_pad_simple(m_data_.input_selector, "sink_%u");
+
+        MP_PRINT("Linking: %s --> %s ... ", GST_ELEMENT_NAME(srcPad), GST_ELEMENT_NAME(selPad));
+        if (GST_PAD_LINK_FAILED(gst_pad_link(srcPad, selPad)))
+        {
+            MP_PRINTERR("[FAIL]\n");
+            return;
+        }
+        MP_PRINT("[DONE]\n");
+
+        if (m_effects_.empty())
+        {
+            g_object_set(m_data_.input_selector, "active-pad", selPad, nullptr);
+        }
+    }
+
+    m_effects_.push_back(std::move<>(pEffect));
 }
 
 void Pipeline::Play() noexcept
@@ -212,7 +250,7 @@ auto Pipeline::S_TaskHandler_(const gpointer data) noexcept -> gboolean
 void Pipeline::S_PadAddedHandlerOf_uridecodebin_([[maybe_unused]] GstElement* src, GstPad* newPad, Data* data) noexcept
 {
     MP_PRINT("S_PadAddedHandlerOf_uridecodebin_ has been called.\n");
-    MP_PRINT("Trying to link '%s' '%s' pad to '%s' sink pad ... ", GST_ELEMENT_NAME(src), GST_PAD_NAME(newPad), GST_ELEMENT_NAME(data->audioconvert));
+    MP_PRINT("Linking: '%s' '%s' pad to '%s' sink pad... ", GST_ELEMENT_NAME(src), GST_PAD_NAME(newPad), GST_ELEMENT_NAME(data->audioconvert));
 
     GstPad*  const audioconvert_1_sink_pad = gst_element_get_static_pad(data->audioconvert, "sink");
     GstCaps* const new_pad_caps            = gst_pad_get_current_caps(newPad);
@@ -258,17 +296,12 @@ void Pipeline::S_ParseAndPrintError_(GstMessage* msg) noexcept
 }
 
 
-auto Pipeline::GetTeePadTemplate_() const noexcept -> GstPadTemplate*
-{
-    return gst_element_class_get_pad_template(GST_ELEMENT_GET_CLASS(m_data_.tee), "src_%u");
-}
-
 auto Pipeline::GetState_() const noexcept -> GstState
 {
     return m_state_;
 }
 
-void Pipeline::SetUri_(const std::string& uriPath) noexcept
+void Pipeline::SetUri_(const std::string& uriPath)
 {
     MP_PRINT("Setting URI to: '%s' ... ", uriPath.c_str());
     g_object_set(m_data_.uridecodebin, "uri", uriPath.c_str(), nullptr);
@@ -314,11 +347,9 @@ void Pipeline::Setup_() noexcept
     SetState_(GST_STATE_NULL);
     SetState_(GST_STATE_READY);
 
-    // demo
-    g_object_set(m_data_.input_selector, "active-pad", m_data_.wet_path_pad, nullptr);
-    g_object_set(m_data_.pitch, "pitch", 1.2, nullptr);
+    MP_PRINT("Pipeline core has been built successfully.\n");
 
-    MP_PRINT("Pipeline built successfully.\n");
+    m_setup_latch_.count_down();
 }
 
 void Pipeline::SetupElements_() noexcept
@@ -342,13 +373,6 @@ void Pipeline::SetupElements_() noexcept
     MP_MAKE_GST_ELEMENT_FOR_CUSTOM_DATA(audioresample,  audioresample,        1);
     MP_MAKE_GST_ELEMENT_FOR_CUSTOM_DATA(tee,            tee,                  1);
     MP_MAKE_GST_ELEMENT_FOR_CUSTOM_DATA(input_selector, input-selector,       1);
-    MP_MAKE_GST_ELEMENT_FOR_CUSTOM_DATA(identity,       identity,             1);
-    MP_MAKE_GST_ELEMENT_FOR_CUSTOM_DATA(pitch,          pitch,                1);
-    MP_MAKE_GST_ELEMENT_FOR_CUSTOM_DATA(post_convert,   audioconvert,         2);
-    MP_MAKE_GST_ELEMENT_FOR_CUSTOM_DATA(post_resample,  audioresample,        2);
-    MP_MAKE_GST_ELEMENT_FOR_CUSTOM_DATA(valve_pitch,    valve,          pitch-1);
-    MP_MAKE_GST_ELEMENT_FOR_CUSTOM_DATA(queue_dry,      queue,            dry-1);
-    MP_MAKE_GST_ELEMENT_FOR_CUSTOM_DATA(queue_wet,      queue,            wet-1);
 
 
 #undef MP_MAKE_GST_ELEMENT_FOR_CUSTOM_DATA
@@ -381,13 +405,6 @@ void Pipeline::SetupBin_() noexcept
         m_data_.audioconvert,
         m_data_.audioresample,
         m_data_.tee,
-        m_data_.queue_dry,
-        m_data_.identity,
-        m_data_.queue_wet,
-        m_data_.valve_pitch,
-        m_data_.pitch,
-        m_data_.post_convert,
-        m_data_.post_resample,
         m_data_.input_selector,
         m_data_.audiosink,
         nullptr
@@ -397,68 +414,19 @@ void Pipeline::SetupBin_() noexcept
 void Pipeline::SetupLinks_() noexcept
 {
 #define MP_GST_ELEMENT_LINK_MANY_WITH_LOGS(...)                             \
-    MP_PRINT("Linking pipeline elements: " #__VA_ARGS__ " ... ");            \
+    MP_PRINT("Linking pipeline elements: " #__VA_ARGS__ " ... ");           \
     if (gst_element_link_many(__VA_ARGS__ __VA_OPT__(,) nullptr) == FALSE)  \
     {                                                                       \
-        MP_PRINTERR("[FAILED]\n");                                           \
+        MP_PRINTERR("[FAILED]\n");                                          \
     }                                                                       \
     MP_PRINT("[DONE]\n");
 
 
     MP_GST_ELEMENT_LINK_MANY_WITH_LOGS(m_data_.audioconvert, m_data_.audioresample, m_data_.tee);
-    MP_GST_ELEMENT_LINK_MANY_WITH_LOGS(m_data_.queue_dry, m_data_.identity);
-    MP_GST_ELEMENT_LINK_MANY_WITH_LOGS(m_data_.queue_wet, m_data_.valve_pitch, m_data_.pitch, m_data_.post_convert, m_data_.post_resample);
     MP_GST_ELEMENT_LINK_MANY_WITH_LOGS(m_data_.input_selector, m_data_.audiosink);
 
 
 #undef MP_GST_ELEMENT_LINK_MANY_WITH_LOGS
-
-    SetupDryPath_();
-    SetupWetPath_();
-}
-
-void Pipeline::SetupDryPath_() noexcept
-{
-    {
-        const auto teeCleanSrcPad = UniqueGstPtr<GstPad>{ gst_element_request_pad(m_data_.tee, GetTeePadTemplate_(), nullptr, nullptr) };
-        const auto drySinkPad     = UniqueGstPtr<GstPad>{ gst_element_get_static_pad(m_data_.queue_dry, "sink") };
-
-        if (GST_PAD_LINK_FAILED(gst_pad_link(teeCleanSrcPad.get(), drySinkPad.get())))
-        {
-            MP_PRINTERR("Failed to link tee to identity.\n");
-        }
-    }
-
-    m_data_.dry_path_pad = gst_element_request_pad_simple(m_data_.input_selector, "sink_%u");
-    MP_PRINT("Obtained 'clean_path_pad': %s\n", gst_pad_get_name(m_data_.dry_path_pad));
-
-    if (const auto drySrcPad = UniqueGstPtr<GstPad>{ gst_element_get_static_pad(m_data_.identity, "src") };
-        GST_PAD_LINK_FAILED(gst_pad_link(drySrcPad.get(), m_data_.dry_path_pad)))
-    {
-        MP_PRINTERR("Failed to link identity to input-selector.\n");
-    }
-}
-
-void Pipeline::SetupWetPath_() noexcept
-{
-    {
-        const auto teeFxSrcPad    = UniqueGstPtr<GstPad>{ gst_element_request_pad(m_data_.tee, GetTeePadTemplate_(), nullptr, nullptr) };
-        const auto firstFxSinkPad = UniqueGstPtr<GstPad>{ gst_element_get_static_pad(m_data_.queue_wet, "sink") };
-
-        if (GST_PAD_LINK_FAILED(gst_pad_link(teeFxSrcPad.get(), firstFxSinkPad.get())))
-        {
-            MP_PRINTERR("Failed to link tee to effects chain.\n");
-        }
-    }
-
-    m_data_.wet_path_pad = gst_element_request_pad_simple(m_data_.input_selector, "sink_%u");
-    MP_PRINT("Obtained 'effects_path_pad': %s\n", gst_pad_get_name(m_data_.wet_path_pad));
-
-    if (const auto lastFxSrcPad = UniqueGstPtr<GstPad>{ gst_element_get_static_pad(m_data_.post_resample, "src") };
-        GST_PAD_LINK_FAILED(gst_pad_link(lastFxSrcPad.get(), m_data_.wet_path_pad)))
-    {
-        MP_PRINTERR("Failed to link effects chain to input-selector.\n");
-    }
 }
 
 void Pipeline::SetupGMainLoop_()
@@ -667,8 +635,8 @@ void Pipeline::CleanupGMainLoop_() noexcept
 
 void Pipeline::WorkerLoop_() noexcept
 {
-    m_start_signal_.acquire();
-    MP_PRINT("[DONE]\n");
+    m_work_start_signal_.acquire();
+    MP_PRINT("Worker thread has just started.\n");
 
     MP_PRINT("Worker thread is setting its default context ... ");
     g_main_context_push_thread_default(m_pContext_);

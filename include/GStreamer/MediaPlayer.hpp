@@ -6,7 +6,6 @@
 #include <GStreamer/Pipeline.hpp>
 
 #include <QObject>
-#include <QObject>
 #include <QTimer>
 
 #include <string>
@@ -44,7 +43,7 @@ protected:
 
 
 private:
-    Pipeline  m_pipeline_{};
+    Pipeline  m_pipeline_;
 };
 
 GST_END_NAMESPACE

@@ -15,10 +15,16 @@
 #pragma warning (pop)
 #endif
 
+#include <GStreamer/IEffectBin.hpp>
+#include <GStreamer/PitchEffectBin.hpp>
+
+#include <cstdint>
+
 #include <string>
 #include <functional>
 #include <thread>
 #include <semaphore>
+#include <latch>
 
 GST_BEGIN_NAMESPACE
 
@@ -33,24 +39,10 @@ class Pipeline
 
         GstElement* tee{};
         GstElement* input_selector{};
-
-        GstElement* identity{};
-
-        GstElement* valve_pitch{};
-        GstElement* pitch{};
-
-        GstElement* post_convert{};
-        GstElement* post_resample{};
-
-        GstElement* queue_dry{};
-        GstElement* queue_wet{};
-
-        GstPad* dry_path_pad{};
-        GstPad* wet_path_pad{};
     };
     struct alignas(64) Task
     {
-        enum class Type
+        enum class Type : std::uint8_t
         {
             None         ,
             BuildPipeline,
@@ -61,7 +53,7 @@ class Pipeline
             Quit
         };
 
-        Type           type = Type::None;
+        Type           type{ Type::None };
         std::string    name{};
         std::size_t    seek_val{};
         Pipeline*      pipeline{};
@@ -69,6 +61,8 @@ class Pipeline
 
 
 public:
+    explicit Pipeline(std::vector<std::unique_ptr<IEffectBin>> effects);
+
     explicit Pipeline();
     explicit Pipeline(const Pipeline&)     = delete;
     explicit Pipeline(Pipeline&&) noexcept = delete;
@@ -84,6 +78,7 @@ public:
     auto IsPlaying     () const noexcept -> bool;
 
     void LoadAudio (const std::string& uriPath) noexcept;
+    void AddEffect (std::unique_ptr<IEffectBin> pEffect);
     void Play      () noexcept;
     void Pause     () noexcept;
     void Seek      (const std::size_t& pos) noexcept;
@@ -104,10 +99,8 @@ private:
 
 
 private:
-    auto GetTeePadTemplate_ () const noexcept -> GstPadTemplate*;
     auto GetState_          () const noexcept -> GstState;
-
-    void SetUri_            (const std::string& uriPath) noexcept;
+    void SetUri_            (const std::string& uriPath);
     void SetState_          (GstState new_state) noexcept;
 
     void Setup_             () noexcept;
@@ -115,8 +108,6 @@ private:
     void SetupBusWatch_     () noexcept;
     void SetupBin_          () noexcept;
     void SetupLinks_        () noexcept;
-    void SetupDryPath_      () noexcept;
-    void SetupWetPath_      () noexcept;
     void SetupGMainLoop_    ();
 
     void LoadAudio_         (const std::string& uriPath) noexcept;
@@ -133,20 +124,23 @@ private:
 
 
 private:
-    Data                        m_data_{};
+    Data                                       m_data_{};
 
-    GstElement*                 m_pPipeline_{};
-    GMainContext*               m_pContext_{};
-    GMainLoop*                  m_pLoop_{};
-    GstState                    m_state_{ GST_STATE_NULL };
+    GstElement*                                m_pPipeline_{};
+    GMainContext*                              m_pContext_{};
+    GMainLoop*                                 m_pLoop_{};
+    GstState                                   m_state_{ GST_STATE_NULL };
 
-    std::string                 m_loaded_uri_;
-    bool                        m_new_media_loaded_{};
-    std::function<void(bool)>   m_state_change_callback_;
-    std::function<void()>       m_media_change_callback_;
+    std::vector<std::unique_ptr<IEffectBin>>   m_effects_;
+    std::string                                m_loaded_uri_;
+    bool                                       m_new_media_loaded_{};
 
-    std::binary_semaphore       m_start_signal_{ 0 };
-    std::thread                 m_worker_;
+    std::function<void(bool)>                  m_state_change_callback_;
+    std::function<void()>                      m_media_change_callback_;
+
+    std::latch                                 m_setup_latch_{ 1 };
+    std::binary_semaphore                      m_work_start_signal_{ 0 };
+    std::thread                                m_worker_;
 };
 
 GST_END_NAMESPACE
