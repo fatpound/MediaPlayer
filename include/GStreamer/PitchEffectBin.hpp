@@ -29,7 +29,8 @@ protected:
 
 
 private:
-    GstElement*  m_pBin_{};
+    GstElement*   m_pBin_{};
+    GstElement*   m_pPitch_{};
 };
 
 GST_END_NAMESPACE
