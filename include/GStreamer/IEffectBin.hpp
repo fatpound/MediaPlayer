@@ -1,5 +1,5 @@
-#ifndef IEFFECTBIN_H
-#define IEFFECTBIN_H
+#ifndef IEFFECTBIN_HPP
+#define IEFFECTBIN_HPP
 
 #include <_macros/Namespaces.hpp>
 
@@ -33,4 +33,4 @@ private:
 
 GST_END_NAMESPACE
 
-#endif // IEFFECTBIN_H
+#endif // IEFFECTBIN_HPP

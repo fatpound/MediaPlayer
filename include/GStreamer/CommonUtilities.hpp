@@ -1,5 +1,5 @@
-#ifndef COMMONUTILITIES_H
-#define COMMONUTILITIES_H
+#ifndef COMMONUTILITIES_HPP
+#define COMMONUTILITIES_HPP
 
 #include <_macros/Namespaces.hpp>
 
@@ -12,4 +12,4 @@ using UniqueGstPtr = std::unique_ptr<T, decltype([](T* const ptr) noexcept -> vo
 
 GST_END_NAMESPACE
 
-#endif // COMMONUTILITIES_H
+#endif // COMMONUTILITIES_HPP
