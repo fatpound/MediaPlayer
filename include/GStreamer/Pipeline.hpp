@@ -16,7 +16,6 @@
 #endif
 
 #include <GStreamer/IEffectBin.hpp>
-#include <GStreamer/PitchEffectBin.hpp>
 
 #include <cstdint>
 
@@ -24,7 +23,6 @@
 #include <functional>
 #include <thread>
 #include <semaphore>
-#include <latch>
 
 GST_BEGIN_NAMESPACE
 
@@ -35,10 +33,17 @@ class Pipeline
         GstElement* uridecodebin{};
         GstElement* audioconvert{};
         GstElement* audioresample{};
+        GstElement* tee{};
+
+        GstElement* queue_identity{};
+        GstElement* identity{};
+
+        GstElement* input_selector{};
         GstElement* audiosink{};
 
-        GstElement* tee{};
-        GstElement* input_selector{};
+        GstElement* queue_wet{};
+        GstPad*     effect_tee_pad{};
+        GstPad*     effect_sel_pad{};
     };
     struct alignas(64) Task
     {
@@ -46,22 +51,26 @@ class Pipeline
         {
             None         ,
             BuildPipeline,
+            AddEffect    ,
             LoadAudio    ,
             Play         ,
             Pause        ,
             Seek         ,
+            RunFunc      ,
             Quit
         };
 
-        Type           type{ Type::None };
-        std::string    name{};
-        std::size_t    seek_val{};
-        Pipeline*      pipeline{};
+        Type                        type{ Type::None };
+        std::string                 name{};
+        std::size_t                 seek_val{};
+        std::function<void()>       func{};
+        std::shared_ptr<IEffectBin> effect{};
+        Pipeline*                   pipeline{};
     };
 
 
 public:
-    explicit Pipeline(std::vector<std::unique_ptr<IEffectBin>> effects);
+    explicit Pipeline(std::shared_ptr<IEffectBin> pEffect);
 
     explicit Pipeline();
     explicit Pipeline(const Pipeline&)     = delete;
@@ -77,12 +86,13 @@ public:
     auto QueryDuration () const noexcept -> std::size_t;
     auto IsPlaying     () const noexcept -> bool;
 
-    void LoadAudio (const std::string& uriPath) noexcept;
-    void AddEffect (std::unique_ptr<IEffectBin> pEffect);
-    void Play      () noexcept;
-    void Pause     () noexcept;
-    void Seek      (const std::size_t& pos) noexcept;
+//  void AddEffect     (std::shared_ptr<IEffectBin> pEffect) noexcept;
+    void LoadAudio     (const std::string& uriPath) noexcept;
+    void Play          () noexcept;
+    void Pause         () noexcept;
+    void Seek          (const std::size_t& pos) noexcept;
 
+    void RunFunc                 (std::function<void()>     func) noexcept;
     void SetStateChangedCallback (std::function<void(bool)> callback);
     void SetMediaChangedCallback (std::function<void()>     callback);
 
@@ -99,28 +109,31 @@ private:
 
 
 private:
-    auto GetState_          () const noexcept -> GstState;
-    void SetUri_            (const std::string& uriPath);
-    void SetState_          (GstState new_state) noexcept;
+    auto GetState_            () const noexcept -> GstState;
+    void SetUri_              (const std::string& uriPath);
+    void SetState_            (GstState new_state) noexcept;
 
-    void Setup_             () noexcept;
-    void SetupElements_     () noexcept;
-    void SetupBusWatch_     () noexcept;
-    void SetupBin_          () noexcept;
-    void SetupLinks_        () noexcept;
-    void SetupGMainLoop_    ();
+    void Setup_               () noexcept;
+    void SetupElements_       () noexcept;
+    void SetupBusWatch_       () noexcept;
+    void SetupBin_            () noexcept;
+    void SetupLinks_          () noexcept;
+    void SetupIdentityBranch_ () noexcept;
+    void SetupGMainLoop_      ();
 
-    void LoadAudio_         (const std::string& uriPath) noexcept;
-    void Play_              () noexcept;
-    void Pause_             () noexcept;
-    void Seek_              (const std::size_t& pos) noexcept;
-    void Quit_              () noexcept;
+    void AddEffect_           (std::shared_ptr<IEffectBin> pEffect) noexcept;
+    void LoadAudio_           (const std::string& uriPath) noexcept;
+    void Play_                () noexcept;
+    void Pause_               () noexcept;
+    void Seek_                (const std::size_t& pos) noexcept;
+    void RunFunc_             (std::function<void()> func) noexcept;
+    void Quit_                () noexcept;
 
-    void DispatchTask_      (Task&& task) noexcept;
-    void OnGstStateChanged_ (bool isPlaying);
-    void Cleanup_           () noexcept;
-    void CleanupGMainLoop_  () noexcept;
-    void WorkerLoop_        () noexcept;
+    void DispatchTask_        (Task&& task) noexcept;
+    void OnGstStateChanged_   (bool isPlaying);
+    void Cleanup_             () noexcept;
+    void CleanupGMainLoop_    () noexcept;
+    void WorkerLoop_          () noexcept;
 
 
 private:
@@ -131,14 +144,13 @@ private:
     GMainLoop*                                 m_pLoop_{};
     GstState                                   m_state_{ GST_STATE_NULL };
 
-    std::vector<std::unique_ptr<IEffectBin>>   m_effects_;
     std::string                                m_loaded_uri_;
     bool                                       m_new_media_loaded_{};
 
     std::function<void(bool)>                  m_state_change_callback_;
     std::function<void()>                      m_media_change_callback_;
+    std::shared_ptr<IEffectBin>                m_pAttachedEffect_;
 
-    std::latch                                 m_setup_latch_{ 1 };
     std::binary_semaphore                      m_work_start_signal_{ 0 };
     std::thread                                m_worker_;
 };

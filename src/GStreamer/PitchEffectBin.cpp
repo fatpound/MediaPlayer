@@ -1,5 +1,6 @@
 #include <GStreamer/PitchEffectBin.hpp>
 #include <GStreamer/CommonUtilities.hpp>
+#include <GStreamer/Pipeline.hpp>
 
 #include <_macros/Logging.hpp>
 
@@ -8,31 +9,18 @@ GST_BEGIN_NAMESPACE
 PitchEffectBin::PitchEffectBin() noexcept
     :
     m_pBin_(CreateBin("pitch_bin")),
+    m_pValve_(CreatePlugin("valve", "valve_pitch")),
     m_pPitch_(CreatePlugin("pitch", "pitch"))
 {
-    auto* const queue  = CreatePlugin("queue",         "queue_wet");
-    auto* const valve  = CreatePlugin("valve",         "valve_pitch");
-    auto* const conv   = CreatePlugin("audioconvert",  "post_conv");
-    auto* const resamp = CreatePlugin("audioresample", "post_resamp");
+    gst_bin_add_many(GST_BIN(m_pBin_), m_pValve_, m_pPitch_, nullptr);
 
-    gst_bin_add_many(GST_BIN(m_pBin_), queue, valve, m_pPitch_, conv, resamp, nullptr);
-    gst_element_link_many(queue, valve, m_pPitch_, conv, resamp, nullptr);
+    LinkElements(m_pValve_, m_pPitch_);
 
+    const auto sinkpad = UniqueGstPtr<GstPad>{ gst_element_get_static_pad(m_pValve_, "sink") };
+    const auto srcpad  = UniqueGstPtr<GstPad>{ gst_element_get_static_pad(m_pPitch_, "src") };
 
-    // GHOST PADs
-
-    auto* const sinkpad = gst_element_get_static_pad(queue, "sink");
-    auto* const srcpad  = gst_element_get_static_pad(resamp, "src");
-
-    gst_element_add_pad(m_pBin_, gst_ghost_pad_new("sink", sinkpad));
-    gst_element_add_pad(m_pBin_, gst_ghost_pad_new("src",  srcpad));
-    gst_object_unref(sinkpad);
-    gst_object_unref(srcpad);
-
-
-    // demo
-
-    g_object_set(m_pPitch_, "pitch", 1.2, nullptr);
+    gst_element_add_pad(m_pBin_, gst_ghost_pad_new("sink", sinkpad.get()));
+    gst_element_add_pad(m_pBin_, gst_ghost_pad_new("src",  srcpad.get()));
 }
 
 
@@ -49,6 +37,20 @@ auto PitchEffectBin::GetSinkPad() const noexcept -> GstPad*
 auto PitchEffectBin::GetSrcPad() const noexcept -> GstPad*
 {
     return gst_element_get_static_pad(m_pBin_, "src");
+}
+
+
+void PitchEffectBin::SetPitchAsync(Pipeline& pipeline, const double newPitch)
+{
+    pipeline.RunFunc(
+        [pPitch = this->m_pPitch_, newPitch] () noexcept -> void
+        {
+            if (pPitch not_eq nullptr)
+            {
+                g_object_set(G_OBJECT(pPitch), "pitch", newPitch, nullptr);
+            }
+        }
+    );
 }
 
 GST_END_NAMESPACE

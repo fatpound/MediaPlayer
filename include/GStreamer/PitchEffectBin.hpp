@@ -7,6 +7,8 @@
 
 GST_BEGIN_NAMESPACE
 
+class Pipeline;
+
 class PitchEffectBin : public IEffectBin
 {
 public:
@@ -25,11 +27,16 @@ public:
     [[nodiscard]] virtual auto GetSrcPad  () const noexcept -> GstPad*     override;
 
 
+public:
+    void SetPitchAsync(Pipeline& pipeline, double newPitch);
+
+
 protected:
 
 
 private:
     GstElement*   m_pBin_{};
+    GstElement*   m_pValve_{};
     GstElement*   m_pPitch_{};
 };
 

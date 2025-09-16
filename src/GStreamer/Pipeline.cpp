@@ -10,13 +10,13 @@
 
 GST_BEGIN_NAMESPACE
 
-Pipeline::Pipeline(std::vector<std::unique_ptr<IEffectBin>> effects)
+Pipeline::Pipeline(std::shared_ptr<IEffectBin> pEffect)
     :
     Pipeline()
 {
-    for (auto& effect : effects)
+    if (pEffect not_eq nullptr)
     {
-        AddEffect(std::move<>(effect));
+        DispatchTask_({ .type = Task::Type::AddEffect, .effect = pEffect, .pipeline = this });
     }
 }
 
@@ -95,6 +95,11 @@ auto Pipeline::IsPlaying() const noexcept -> bool
     return GetState_() == GST_STATE_PLAYING;
 }
 
+// void Pipeline::AddEffect(std::shared_ptr<IEffectBin> pEffect) noexcept
+// {
+//     DispatchTask_({ .type = Task::Type::AddEffect, .effect_chain = pEffect, .pipeline = this });
+// }
+
 void Pipeline::LoadAudio(const std::string& uriPath) noexcept
 {
     if (m_loaded_uri_ not_eq uriPath)
@@ -107,50 +112,6 @@ void Pipeline::LoadAudio(const std::string& uriPath) noexcept
     {
         MP_PRINT("The audio had already been loaded.\n");
     }
-}
-
-void Pipeline::AddEffect(std::unique_ptr<IEffectBin> pEffect)
-{
-    m_setup_latch_.wait();
-
-    if (gst_bin_add(GST_BIN(m_pPipeline_), pEffect->GetBin()) == FALSE)
-    {
-        MP_PRINTERR("Could NOT add EffectBin to pipeline!\n");
-        return;
-    }
-
-    {
-        auto* const teePad  = gst_element_request_pad_simple(m_data_.tee, "src_%u");
-        auto* const sinkPad = pEffect->GetSinkPad();
-
-        MP_PRINT("Linking: %s --> %s ... ", GST_ELEMENT_NAME(teePad), GST_ELEMENT_NAME(sinkPad));
-        if (GST_PAD_LINK_FAILED(gst_pad_link(teePad, sinkPad)))
-        {
-            MP_PRINTERR("[FAILED]\n");
-            return;
-        }
-        MP_PRINT("[DONE]\n");
-    }
-
-    {
-        auto* const srcPad = pEffect->GetSrcPad();
-        auto* const selPad = gst_element_request_pad_simple(m_data_.input_selector, "sink_%u");
-
-        MP_PRINT("Linking: %s --> %s ... ", GST_ELEMENT_NAME(srcPad), GST_ELEMENT_NAME(selPad));
-        if (GST_PAD_LINK_FAILED(gst_pad_link(srcPad, selPad)))
-        {
-            MP_PRINTERR("[FAILED]\n");
-            return;
-        }
-        MP_PRINT("[DONE]\n");
-
-        if (m_effects_.empty())
-        {
-            g_object_set(m_data_.input_selector, "active-pad", selPad, nullptr);
-        }
-    }
-
-    m_effects_.push_back(std::move<>(pEffect));
 }
 
 void Pipeline::Play() noexcept
@@ -166,6 +127,11 @@ void Pipeline::Pause() noexcept
 void Pipeline::Seek(const std::size_t& pos) noexcept
 {
     DispatchTask_({ .type = Task::Type::Seek, .seek_val = pos, .pipeline = this });
+}
+
+void Pipeline::RunFunc(std::function<void()> fn) noexcept
+{
+    DispatchTask_({ .type = Task::Type::RunFunc, .func = fn, .pipeline = this });
 }
 
 void Pipeline::SetStateChangedCallback(std::function<void(bool)> callback)
@@ -226,18 +192,21 @@ auto Pipeline::S_TaskHandler_(const gpointer data) noexcept -> gboolean
 
     if (pipeline.m_pPipeline_ == nullptr and task.type > Task::Type::Pause)
     {
-        MP_PRINT("Task ignored: Pipeline is not ready for effect changes.\n");
+        MP_PRINTERR("Pipeline does NOT exist yet and tasks will not be handled!\n");
+
         return G_SOURCE_REMOVE;
     }
 
     switch (task.type)
     {
-    case Task::Type::BuildPipeline: pipeline.Setup_();              break;
-    case Task::Type::LoadAudio:     pipeline.LoadAudio_(task.name); break;
-    case Task::Type::Play:          pipeline.Play_();               break;
-    case Task::Type::Pause:         pipeline.Pause_();              break;
-    case Task::Type::Seek:          pipeline.Seek_(task.seek_val);  break;
-    case Task::Type::Quit:          pipeline.Quit_();               break;
+    case Task::Type::BuildPipeline: pipeline.Setup_();                break;
+    case Task::Type::AddEffect:     pipeline.AddEffect_(task.effect); break;
+    case Task::Type::LoadAudio:     pipeline.LoadAudio_(task.name);   break;
+    case Task::Type::Play:          pipeline.Play_();                 break;
+    case Task::Type::Pause:         pipeline.Pause_();                break;
+    case Task::Type::Seek:          pipeline.Seek_(task.seek_val);    break;
+    case Task::Type::RunFunc:       pipeline.RunFunc_(task.func);     break;
+    case Task::Type::Quit:          pipeline.Quit_();                 break;
 
     default:
         MP_LOGWARN("Unhandled task type: %d\n", static_cast<int>(task.type));
@@ -341,44 +310,34 @@ void Pipeline::Setup_() noexcept
     SetupBusWatch_();
     SetupBin_();
     SetupLinks_();
+    SetupIdentityBranch_();
 
     g_signal_connect(m_data_.uridecodebin, "pad-added", G_CALLBACK(&Pipeline::S_PadAddedHandlerOf_uridecodebin_), &m_data_);
 
     SetState_(GST_STATE_NULL);
     SetState_(GST_STATE_READY);
 
-    MP_PRINT("Pipeline core has been built successfully.\n");
+#ifdef FATLIB_BUILDING_ON_WINDOWS
+    g_object_set(m_data_.audiosink, "low-latency", true, nullptr);
+#endif
 
-    m_setup_latch_.count_down();
+    MP_PRINT("Pipeline core has been built successfully.\n");
 }
 
 void Pipeline::SetupElements_() noexcept
 {
-#define MP_MAKE_GST_ELEMENT_FOR_CUSTOM_DATA(MEMBERNAME, FACTORYNAME, NAME)                                          \
-    m_data_.MEMBERNAME = gst_element_factory_make(#FACTORYNAME, #FACTORYNAME #NAME);                                \
-    if (m_data_.MEMBERNAME == nullptr)                                                                              \
-    {                                                                                                               \
-        MP_PRINTERR("Failed to create GStreamer element: '%s' of type '%s'\n", #FACTORYNAME #NAME, #FACTORYNAME);   \
-    }
-
+    m_data_.uridecodebin   = CreatePlugin("uridecodebin"  , "uridecodebin-1");
+    m_data_.audioconvert   = CreatePlugin("audioconvert"  , "audioconvert-1");
+    m_data_.audioresample  = CreatePlugin("audioresample" , "audioresample-1");
+    m_data_.tee            = CreatePlugin("tee"           , "tee-1");
+    m_data_.queue_identity = CreatePlugin("queue"         , "queue-identity-1");
+    m_data_.identity       = CreatePlugin("identity"      , "identity-1");
+    m_data_.input_selector = CreatePlugin("input-selector", "input-selector-1");
 
 #ifdef FATLIB_BUILDING_ON_WINDOWS
-    MP_MAKE_GST_ELEMENT_FOR_CUSTOM_DATA(audiosink,      wasapisink,           1);
+    m_data_.audiosink      = CreatePlugin("wasapisink"    , "wasapisink-1");
 #else
-    MP_MAKE_GST_ELEMENT_FOR_CUSTOM_DATA(audiosink,      autoaudiosink,        1);
-#endif
-
-    MP_MAKE_GST_ELEMENT_FOR_CUSTOM_DATA(uridecodebin,   uridecodebin,         1);
-    MP_MAKE_GST_ELEMENT_FOR_CUSTOM_DATA(audioconvert,   audioconvert,         1);
-    MP_MAKE_GST_ELEMENT_FOR_CUSTOM_DATA(audioresample,  audioresample,        1);
-    MP_MAKE_GST_ELEMENT_FOR_CUSTOM_DATA(tee,            tee,                  1);
-    MP_MAKE_GST_ELEMENT_FOR_CUSTOM_DATA(input_selector, input-selector,       1);
-
-
-#undef MP_MAKE_GST_ELEMENT_FOR_CUSTOM_DATA
-
-#ifdef FATLIB_BUILDING_ON_WINDOWS
-    g_object_set(m_data_.audiosink, "low-latency", true, nullptr);
+    m_data_.audiosink      = CreatePlugin("autoaudiosink" , "autoaudiosink-1");
 #endif
 }
 
@@ -405,6 +364,8 @@ void Pipeline::SetupBin_() noexcept
         m_data_.audioconvert,
         m_data_.audioresample,
         m_data_.tee,
+        m_data_.queue_identity,
+        m_data_.identity,
         m_data_.input_selector,
         m_data_.audiosink,
         nullptr
@@ -413,20 +374,32 @@ void Pipeline::SetupBin_() noexcept
 
 void Pipeline::SetupLinks_() noexcept
 {
-#define MP_GST_ELEMENT_LINK_MANY_WITH_LOGS(...)                             \
-    MP_PRINT("Linking pipeline elements: " #__VA_ARGS__ " ... ");           \
-    if (gst_element_link_many(__VA_ARGS__ __VA_OPT__(,) nullptr) == FALSE)  \
-    {                                                                       \
-        MP_PRINTERR("[FAILED]\n");                                          \
-    }                                                                       \
-    MP_PRINT("[DONE]\n");
+    LinkElements(m_data_.audioconvert  , m_data_.audioresample);
+    LinkElements(m_data_.audioresample , m_data_.tee);
+    LinkElements(m_data_.queue_identity, m_data_.identity);
+    LinkElements(m_data_.input_selector, m_data_.audiosink);
+}
 
+void Pipeline::SetupIdentityBranch_() noexcept
+{
+    {
+        const auto teeCleanSrcPad = UniqueGstPtr<GstPad>{ gst_element_request_pad_simple(m_data_.tee, "src_%u") };
+        const auto drySinkPad     = UniqueGstPtr<GstPad>{ gst_element_get_static_pad(m_data_.queue_identity, "sink") };
 
-    MP_GST_ELEMENT_LINK_MANY_WITH_LOGS(m_data_.audioconvert, m_data_.audioresample, m_data_.tee);
-    MP_GST_ELEMENT_LINK_MANY_WITH_LOGS(m_data_.input_selector, m_data_.audiosink);
+        if (GST_PAD_LINK_FAILED(gst_pad_link(teeCleanSrcPad.get(), drySinkPad.get())))
+        {
+            MP_PRINTERR("Failed to link tee to identity.\n");
+        }
+    }
 
+    auto* const pad = gst_element_request_pad_simple(m_data_.input_selector, "sink_%u");
+    MP_PRINT("Obtained 'identity_pad': %s\n", gst_pad_get_name(pad));
 
-#undef MP_GST_ELEMENT_LINK_MANY_WITH_LOGS
+    if (const auto drySrcPad = UniqueGstPtr<GstPad>{ gst_element_get_static_pad(m_data_.identity, "src") };
+        GST_PAD_LINK_FAILED(gst_pad_link(drySrcPad.get(), pad)))
+    {
+        MP_PRINTERR("Failed to link identity to input-selector.\n");
+    }
 }
 
 void Pipeline::SetupGMainLoop_()
@@ -435,15 +408,157 @@ void Pipeline::SetupGMainLoop_()
 
     if (m_pContext_ = g_main_context_new(); m_pContext_ == nullptr)
     {
-        throw std::runtime_error{"Could not crete main context for GMainLoop!"};
+        throw std::runtime_error{"Could not create main context for GMainLoop!"};
     }
 
     if (m_pLoop_= g_main_loop_new(m_pContext_, FALSE); m_pLoop_ == nullptr)
     {
-        throw std::runtime_error{"Could not crete loop for GMainLoop!"};
+        throw std::runtime_error{"Could not create loop for GMainLoop!"};
     }
 
     MP_PRINT("[DONE]\n");
+}
+
+void Pipeline::AddEffect_(std::shared_ptr<IEffectBin> pEffect) noexcept
+{
+    if (pEffect == nullptr)
+    {
+        MP_PRINTERR("AddEffect_: null chain\n");
+        return;
+    }
+
+    if (m_pAttachedEffect_ not_eq nullptr)
+    {
+        MP_PRINTERR("AddEffect_: a chain is already attached. Remove it first.\n");
+        return;
+    }
+
+    auto* const pEffectBin = pEffect->GetBin();
+
+    if (gst_bin_add(GST_BIN(m_pPipeline_), pEffectBin) == FALSE)
+    {
+        MP_PRINTERR("AddEffect_: Could not add chain bin to pipeline\n");
+        return;
+    }
+
+    m_data_.queue_wet = CreatePlugin("queue", "queue-wet-1");
+
+    if (m_data_.queue_wet == nullptr)
+    {
+        MP_PRINTERR("AddEffect_: Failed to create queue-wet\n");
+
+        gst_bin_remove(GST_BIN(m_pPipeline_), pEffectBin);
+
+        return;
+    }
+
+    if (gst_bin_add(GST_BIN(m_pPipeline_), m_data_.queue_wet) == FALSE)
+    {
+        MP_PRINTERR("AddEffect_: Could not add queue-wet to pipeline\n");
+
+        gst_bin_remove(GST_BIN(m_pPipeline_), pEffectBin);
+        gst_object_unref(m_data_.queue_wet);
+        m_data_.queue_wet = nullptr;
+
+        return;
+    }
+
+    gst_element_sync_state_with_parent(m_data_.queue_wet);
+    gst_element_sync_state_with_parent(pEffectBin);
+
+    m_data_.effect_tee_pad = gst_element_request_pad_simple(m_data_.tee, "src_%u");
+
+    if (m_data_.effect_tee_pad == nullptr)
+    {
+        MP_PRINTERR("AddEffect_: Failed to request tee pad\n");
+
+        gst_bin_remove(GST_BIN(m_pPipeline_), m_data_.queue_wet);
+        gst_bin_remove(GST_BIN(m_pPipeline_), pEffectBin);
+        m_data_.queue_wet = nullptr;
+
+        return;
+    }
+
+    {
+        const auto queueSink = UniqueGstPtr<GstPad>{ gst_element_get_static_pad(m_data_.queue_wet, "sink") };
+
+        if (GST_PAD_LINK_FAILED(gst_pad_link(m_data_.effect_tee_pad, queueSink.get())))
+        {
+            MP_PRINTERR("AddEffect_: Failed to link tee -> queue_wet\n");
+
+            gst_element_release_request_pad(m_data_.tee, m_data_.effect_tee_pad);
+            gst_object_unref(m_data_.effect_tee_pad);
+            gst_bin_remove(GST_BIN(m_pPipeline_), m_data_.queue_wet);
+            gst_bin_remove(GST_BIN(m_pPipeline_), pEffectBin);
+            m_data_.effect_tee_pad = nullptr;
+            m_data_.queue_wet      = nullptr;
+
+            return;
+        }
+    }
+
+    {
+        const auto queueSrc  = UniqueGstPtr<GstPad>{ gst_element_get_static_pad(m_data_.queue_wet, "src") };
+        const auto chainSink = UniqueGstPtr<GstPad>{ gst_element_get_static_pad(pEffectBin, "sink") };
+
+        if (GST_PAD_LINK_FAILED(gst_pad_link(queueSrc.get(), chainSink.get())))
+        {
+            MP_PRINTERR("AddEffect_: Failed to link queue_wet -> chain\n");
+
+            gst_pad_unlink(m_data_.effect_tee_pad, queueSrc.get());
+            gst_element_release_request_pad(m_data_.tee, m_data_.effect_tee_pad);
+            gst_object_unref(m_data_.effect_tee_pad);
+            gst_bin_remove(GST_BIN(m_pPipeline_), m_data_.queue_wet);
+            gst_bin_remove(GST_BIN(m_pPipeline_), pEffectBin);
+            m_data_.effect_tee_pad = nullptr;
+            m_data_.queue_wet      = nullptr;
+
+            return;
+        }
+    }
+
+    m_data_.effect_sel_pad = gst_element_request_pad_simple(m_data_.input_selector, "sink_%u");
+
+    if (m_data_.effect_sel_pad == nullptr)
+    {
+        MP_PRINTERR("AddEffect_: Failed to request input-selector sink pad\n");
+
+        gst_element_release_request_pad(m_data_.tee, m_data_.effect_tee_pad);
+        gst_object_unref(m_data_.effect_tee_pad);
+        gst_bin_remove(GST_BIN(m_pPipeline_), m_data_.queue_wet);
+        gst_bin_remove(GST_BIN(m_pPipeline_), pEffectBin);
+        m_data_.effect_tee_pad = nullptr;
+        m_data_.queue_wet      = nullptr;
+
+        return;
+    }
+
+    {
+        const auto chainSrc = UniqueGstPtr<GstPad>{ gst_element_get_static_pad(pEffectBin, "src") };
+
+        if (GST_PAD_LINK_FAILED(gst_pad_link(chainSrc.get(), m_data_.effect_sel_pad)))
+        {
+            MP_PRINTERR("AddEffect_: Failed to link chain -> input-selector\n");
+
+            gst_element_release_request_pad(m_data_.input_selector, m_data_.effect_sel_pad);
+            gst_object_unref(m_data_.effect_sel_pad);
+            gst_element_release_request_pad(m_data_.tee, m_data_.effect_tee_pad);
+            gst_object_unref(m_data_.effect_tee_pad);
+            gst_bin_remove(GST_BIN(m_pPipeline_), m_data_.queue_wet);
+            gst_bin_remove(GST_BIN(m_pPipeline_), pEffectBin);
+            m_data_.effect_sel_pad = nullptr;
+            m_data_.effect_tee_pad = nullptr;
+            m_data_.queue_wet = nullptr;
+
+            return;
+        }
+    }
+
+    g_object_set(m_data_.input_selector, "active-pad", m_data_.effect_sel_pad, nullptr);
+
+    m_pAttachedEffect_ = pEffect;
+
+    MP_PRINT("AddEffect_: Effect chain attached and active.\n");
 }
 
 void Pipeline::LoadAudio_(const std::string& uriPath) noexcept
@@ -533,6 +648,18 @@ void Pipeline::Seek_(const std::size_t& pos) noexcept
         MP_PRINTERR("[FAILED]\n");
     }
     MP_PRINT("[DONE]\n");
+}
+
+void Pipeline::RunFunc_(std::function<void()> func) noexcept
+{
+    try
+    {
+        func();
+    }
+    catch (...)
+    {
+
+    }
 }
 
 void Pipeline::Quit_() noexcept

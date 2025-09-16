@@ -4,6 +4,7 @@
 #include <_macros/Namespaces.hpp>
 
 #include <GStreamer/Pipeline.hpp>
+#include <GStreamer/PitchEffectBin.hpp>
 
 #include <QObject>
 #include <QTimer>
@@ -30,10 +31,10 @@ public:
     auto QueryDuration () const noexcept -> std::size_t;
     auto IsPlaying     () const noexcept -> bool;
 
-    void LoadAudio (const std::string& uriPath) noexcept;
-    void Play      ()  noexcept;
-    void Pause     () noexcept;
-    void Seek      (const std::size_t& pos) noexcept;
+    void LoadAudio     (const std::string& uriPath) noexcept;
+    void Play          () noexcept;
+    void Pause         () noexcept;
+    void Seek          (const std::size_t& pos) noexcept;
 
     void SetStateChangedCallback (std::function<void(bool)> callback);
     void SetMediaChangedCallback (std::function<void()>     callback);
@@ -43,7 +44,8 @@ protected:
 
 
 private:
-    Pipeline  m_pipeline_;
+    std::shared_ptr<PitchEffectBin>   m_pPitchEffect_;
+    Pipeline                          m_pipeline_;
 };
 
 GST_END_NAMESPACE

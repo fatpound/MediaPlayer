@@ -2,8 +2,6 @@
 
 #include <_macros/Logging.hpp>
 
-#include <GStreamer/PitchEffectBin.hpp>
-
 #include <QDebug>
 #include <QUrl>
 #include <QString>
@@ -11,10 +9,17 @@
 GST_BEGIN_NAMESPACE
 
 MediaPlayer::MediaPlayer()
+    :
+    m_pPitchEffect_(std::make_shared<PitchEffectBin>()),
+    m_pipeline_(m_pPitchEffect_)
 {
     MP_PRINT("Starting MediaPlayer...\n");
 
-    m_pipeline_.AddEffect(std::make_unique<PitchEffectBin>());
+    if (m_pPitchEffect_ not_eq nullptr)
+    {
+        // demo
+        m_pPitchEffect_->SetPitchAsync(m_pipeline_, 1.2);
+    }
 }
 
 MediaPlayer::~MediaPlayer()
