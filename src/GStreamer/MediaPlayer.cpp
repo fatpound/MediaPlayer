@@ -14,12 +14,6 @@ MediaPlayer::MediaPlayer()
     m_pipeline_(m_pPitchEffect_)
 {
     MP_PRINT("Starting MediaPlayer...\n");
-
-    if (m_pPitchEffect_ not_eq nullptr)
-    {
-        // demo
-        m_pPitchEffect_->SetPitchAsync(m_pipeline_, 1.2);
-    }
 }
 
 MediaPlayer::~MediaPlayer()
@@ -60,6 +54,14 @@ void MediaPlayer::Pause() noexcept
 void MediaPlayer::Seek(const std::size_t& pos) noexcept
 {
     m_pipeline_.Seek(pos);
+}
+
+void MediaPlayer::SetPitchValue(const double val) noexcept
+{
+    if (m_pPitchEffect_ not_eq nullptr)
+    {
+        m_pPitchEffect_->SetPitchAsync(m_pipeline_, val);
+    }
 }
 
 void MediaPlayer::SetStateChangedCallback(std::function<void(bool)> callback)

@@ -3,5 +3,6 @@
         <file>assets/pause.png</file>
         <file>assets/play.png</file>
         <file>assets/rewind.png</file>
+        <file>assets/tune_effects.png</file>
     </qresource>
 </RCC>

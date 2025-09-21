@@ -43,6 +43,7 @@ public:
     Q_INVOKABLE void pause();
     Q_INVOKABLE void seek(const qint64& pos);
     Q_INVOKABLE void fullRewind();
+    Q_INVOKABLE void setPitch(const qreal& rate);
 
 
 signals:

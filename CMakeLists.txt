@@ -46,10 +46,11 @@ qt_add_qml_module(MediaPlayer
         resources.qrc
     QML_FILES
         Main.qml
-        MPProgressBar.qml
-        MPPlaybackControls.qml
-        MPMenuBar.qml
         MPContentView.qml
+        MPMenuBar.qml
+        MPPitchControlPopup.qml
+        MPPlaybackControls.qml
+        MPProgressBar.qml
 )
 
 include(_misc/FatCodex/CompileOptions.cmake)

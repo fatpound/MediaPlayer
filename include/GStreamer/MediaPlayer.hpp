@@ -35,6 +35,7 @@ public:
     void Play          () noexcept;
     void Pause         () noexcept;
     void Seek          (const std::size_t& pos) noexcept;
+    void SetPitchValue (double val) noexcept;
 
     void SetStateChangedCallback (std::function<void(bool)> callback);
     void SetMediaChangedCallback (std::function<void()>     callback);

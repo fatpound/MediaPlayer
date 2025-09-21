@@ -85,6 +85,11 @@ void MediaPlayerWrapper::fullRewind()
     seek(0U);
 }
 
+void MediaPlayerWrapper::setPitch(const qreal& rate)
+{
+    m_player_.SetPitchValue(static_cast<double>(rate));
+}
+
 
 void MediaPlayerWrapper::PollPosition_()
 {

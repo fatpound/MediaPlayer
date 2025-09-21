@@ -54,4 +54,32 @@ Rectangle {
         onPlayClicked:   contentRoot.playRequested()
         onPauseClicked:  contentRoot.pauseRequested()
     }
+
+    MPPitchControlPopup {
+        id: pitchControlPopup
+    }
+
+    ToolButton {
+        id: settingsButton
+        anchors.top: contentRoot.top
+        anchors.right: contentRoot.right
+        anchors.margins: 12
+        width: 32
+        height: 32
+
+        contentItem: Image {
+            id: tune_effects_img
+            source: "qrc:/assets/tune_effects.png"
+            sourceSize.width: 24
+            sourceSize.height: 24
+            fillMode: Image.PreserveAspectFit
+            opacity: 0.7
+        }
+
+        onClicked: {
+            pitchControlPopup.x = settingsButton.x + settingsButton.width  / 2 - tune_effects_img.width  / 2 - pitchControlPopup.width
+            pitchControlPopup.y = settingsButton.y + settingsButton.height / 2 + tune_effects_img.height / 2
+            pitchControlPopup.open()
+        }
+    }
 }

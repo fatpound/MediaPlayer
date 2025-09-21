@@ -16,7 +16,7 @@ public:
 
     auto operator = (const IEffectBin&)     -> IEffectBin& = default;
     auto operator = (IEffectBin&&) noexcept -> IEffectBin& = default;
-    virtual ~IEffectBin() noexcept = default;
+    virtual ~IEffectBin() noexcept                         = default;
 
 
 public:
