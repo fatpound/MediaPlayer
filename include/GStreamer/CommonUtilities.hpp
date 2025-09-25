@@ -4,7 +4,7 @@
 #include <_macros/Logging.hpp>
 #include <_macros/Namespaces.hpp>
 
-#include <gst/gst.h>
+#include <GStreamer/FatGst.hpp>
 
 #include <string>
 #include <memory>

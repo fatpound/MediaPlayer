@@ -3,7 +3,7 @@
 
 #include <_macros/Namespaces.hpp>
 
-#include <gst/gst.h>
+#include <GStreamer/FatGst.hpp>
 
 GST_BEGIN_NAMESPACE
 
