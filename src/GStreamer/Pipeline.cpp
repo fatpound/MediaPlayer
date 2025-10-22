@@ -166,7 +166,7 @@ auto Pipeline::S_BusCallback_(GstBus*, GstMessage* const msg, const gpointer dat
         break;
 
     case GST_MESSAGE_ERROR:
-        S_ParseAndPrintError_(msg);
+        PrintErrorMsg(msg);
         pipeline.Pause();
         break;
 
@@ -250,18 +250,6 @@ exit:
     }
 
     gst_object_unref(audioconvert_1_sink_pad);
-}
-
-void Pipeline::S_ParseAndPrintError_(GstMessage* msg) noexcept
-{
-    GError* err{};
-    gchar* debug_info{};
-
-    gst_message_parse_error(msg, &err, &debug_info);
-    MP_PRINTERR("Error received from element %s: %s\n", GST_OBJECT_NAME(msg->src), err->message);
-    MP_PRINTERR("Debugging information: %s\n", debug_info ? debug_info : "none");
-    g_clear_error(&err);
-    g_free(debug_info);
 }
 
 
@@ -479,6 +467,8 @@ void Pipeline::AddEffect_(std::shared_ptr<IEffectBin> pEffect) noexcept
         return;
     }
 
+    // TODO: simplify this
+
     {
         const auto queueSink = UniqueGstPtr<GstPad>{ gst_element_get_static_pad(m_data_.queue_wet, "sink") };
 
@@ -592,7 +582,7 @@ void Pipeline::Play_() noexcept
         return;
     }
 
-    if (m_loaded_uri_ not_eq "")
+    if (not m_loaded_uri_.empty())
     {
         SetState_(GST_STATE_PLAYING);
     }
@@ -631,7 +621,7 @@ void Pipeline::Seek_(const std::size_t& pos) noexcept
         return;
     }
 
-    if (m_loaded_uri_ == "")
+    if (m_loaded_uri_.empty())
     {
         MP_LOGWARN("No audio is loaded.\n");
         return;
@@ -741,9 +731,10 @@ void Pipeline::Cleanup_() noexcept
 
     SetState_(GST_STATE_VOID_PENDING);
     gst_object_unref(m_pPipeline_);
-    m_pPipeline_ = nullptr;
 
-    m_data_ = {};
+    m_pPipeline_ = nullptr;
+    m_data_      = {};
+
     MP_PRINT("Pipeline has been cleared.\n");
 }
 

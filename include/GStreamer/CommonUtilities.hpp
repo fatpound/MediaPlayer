@@ -48,6 +48,18 @@ inline void LinkElements(GstElement* const src, GstElement* const dest) noexcept
     MP_PRINT("[DONE]\n");
 }
 
+inline void PrintErrorMsg(GstMessage* const msg) noexcept
+{
+    GError* err{};
+    gchar* debug_info{};
+
+    gst_message_parse_error(msg, &err, &debug_info);
+    MP_PRINTERR("Error received from element %s: %s\n", GST_OBJECT_NAME(msg->src), err->message);
+    MP_PRINTERR("Debugging information: %s\n", debug_info ? debug_info : "none");
+    g_clear_error(&err);
+    g_free(debug_info);
+}
+
 GST_END_NAMESPACE
 
 #endif // COMMONUTILITIES_HPP

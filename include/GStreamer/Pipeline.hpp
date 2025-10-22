@@ -94,7 +94,6 @@ private:
     static auto S_TaskHandler_(gpointer data) noexcept -> gboolean;
 
     static void S_PadAddedHandlerOf_uridecodebin_(GstElement* src, GstPad* newPad, Data* data) noexcept;
-    static void S_ParseAndPrintError_(GstMessage* msg) noexcept;
 
 
 private:
