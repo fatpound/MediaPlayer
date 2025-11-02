@@ -16,7 +16,7 @@ Pipeline::Pipeline(std::shared_ptr<IEffectBin> pEffect)
 {
     if (pEffect not_eq nullptr)
     {
-        DispatchTask_({ .type = Task::Type::AddEffect, .effect = pEffect, .pipeline = this });
+        DispatchTask_({ .type = Task::Type::AttachEffect, .effect = pEffect, .pipeline = this });
     }
 }
 
@@ -95,9 +95,9 @@ auto Pipeline::IsPlaying() const noexcept -> bool
     return GetState_() == GST_STATE_PLAYING;
 }
 
-// void Pipeline::AddEffect(std::shared_ptr<IEffectBin> pEffect) noexcept
+// void Pipeline::AttachEffect(std::shared_ptr<IEffectBin> pEffect) noexcept
 // {
-//     DispatchTask_({ .type = Task::Type::AddEffect, .effect_chain = pEffect, .pipeline = this });
+//     DispatchTask_({ .type = Task::Type::AttachEffect, .effect_chain = pEffect, .pipeline = this });
 // }
 
 void Pipeline::LoadAudio(const std::string& uriPath) noexcept
@@ -200,7 +200,7 @@ auto Pipeline::S_TaskHandler_(const gpointer data) noexcept -> gboolean
     switch (task.type)
     {
     case Task::Type::BuildPipeline: pipeline.Setup_();                break;
-    case Task::Type::AddEffect:     pipeline.AddEffect_(task.effect); break;
+    case Task::Type::AttachEffect:     pipeline.AttachEffect_(task.effect); break;
     case Task::Type::LoadAudio:     pipeline.LoadAudio_(task.name);   break;
     case Task::Type::Play:          pipeline.Play_();                 break;
     case Task::Type::Pause:         pipeline.Pause_();                break;
@@ -407,17 +407,17 @@ void Pipeline::SetupGMainLoop_()
     MP_PRINT("[DONE]\n");
 }
 
-void Pipeline::AddEffect_(std::shared_ptr<IEffectBin> pEffect) noexcept
+void Pipeline::AttachEffect_(std::shared_ptr<IEffectBin> pEffect) noexcept
 {
     if (pEffect == nullptr)
     {
-        MP_PRINTERR("AddEffect_: null chain\n");
+        MP_PRINTERR("AttachEffect_: null chain\n");
         return;
     }
 
     if (m_pAttachedEffect_ not_eq nullptr)
     {
-        MP_PRINTERR("AddEffect_: a chain is already attached. Remove it first.\n");
+        MP_PRINTERR("AttachEffect_: a chain is already attached. Remove it first.\n");
         return;
     }
 
@@ -425,7 +425,7 @@ void Pipeline::AddEffect_(std::shared_ptr<IEffectBin> pEffect) noexcept
 
     if (gst_bin_add(GST_BIN(m_pPipeline_), pEffectBin) == FALSE)
     {
-        MP_PRINTERR("AddEffect_: Could not add chain bin to pipeline\n");
+        MP_PRINTERR("AttachEffect_: Could not add chain bin to pipeline\n");
         return;
     }
 
@@ -433,7 +433,7 @@ void Pipeline::AddEffect_(std::shared_ptr<IEffectBin> pEffect) noexcept
 
     if (m_data_.queue_wet == nullptr)
     {
-        MP_PRINTERR("AddEffect_: Failed to create queue-wet\n");
+        MP_PRINTERR("AttachEffect_: Failed to create queue-wet\n");
 
         gst_bin_remove(GST_BIN(m_pPipeline_), pEffectBin);
 
@@ -442,7 +442,7 @@ void Pipeline::AddEffect_(std::shared_ptr<IEffectBin> pEffect) noexcept
 
     if (gst_bin_add(GST_BIN(m_pPipeline_), m_data_.queue_wet) == FALSE)
     {
-        MP_PRINTERR("AddEffect_: Could not add queue-wet to pipeline\n");
+        MP_PRINTERR("AttachEffect_: Could not add queue-wet to pipeline\n");
 
         gst_bin_remove(GST_BIN(m_pPipeline_), pEffectBin);
         gst_object_unref(m_data_.queue_wet);
@@ -458,7 +458,7 @@ void Pipeline::AddEffect_(std::shared_ptr<IEffectBin> pEffect) noexcept
 
     if (m_data_.effect_tee_pad == nullptr)
     {
-        MP_PRINTERR("AddEffect_: Failed to request tee pad\n");
+        MP_PRINTERR("AttachEffect_: Failed to request tee pad\n");
 
         gst_bin_remove(GST_BIN(m_pPipeline_), m_data_.queue_wet);
         gst_bin_remove(GST_BIN(m_pPipeline_), pEffectBin);
@@ -474,7 +474,7 @@ void Pipeline::AddEffect_(std::shared_ptr<IEffectBin> pEffect) noexcept
 
         if (GST_PAD_LINK_FAILED(gst_pad_link(m_data_.effect_tee_pad, queueSink.get())))
         {
-            MP_PRINTERR("AddEffect_: Failed to link tee -> queue_wet\n");
+            MP_PRINTERR("AttachEffect_: Failed to link tee -> queue_wet\n");
 
             gst_element_release_request_pad(m_data_.tee, m_data_.effect_tee_pad);
             gst_object_unref(m_data_.effect_tee_pad);
@@ -493,7 +493,7 @@ void Pipeline::AddEffect_(std::shared_ptr<IEffectBin> pEffect) noexcept
 
         if (GST_PAD_LINK_FAILED(gst_pad_link(queueSrc.get(), chainSink.get())))
         {
-            MP_PRINTERR("AddEffect_: Failed to link queue_wet -> chain\n");
+            MP_PRINTERR("AttachEffect_: Failed to link queue_wet -> chain\n");
 
             gst_pad_unlink(m_data_.effect_tee_pad, queueSrc.get());
             gst_element_release_request_pad(m_data_.tee, m_data_.effect_tee_pad);
@@ -511,7 +511,7 @@ void Pipeline::AddEffect_(std::shared_ptr<IEffectBin> pEffect) noexcept
 
     if (m_data_.effect_sel_pad == nullptr)
     {
-        MP_PRINTERR("AddEffect_: Failed to request input-selector sink pad\n");
+        MP_PRINTERR("AttachEffect_: Failed to request input-selector sink pad\n");
 
         gst_element_release_request_pad(m_data_.tee, m_data_.effect_tee_pad);
         gst_object_unref(m_data_.effect_tee_pad);
@@ -528,7 +528,7 @@ void Pipeline::AddEffect_(std::shared_ptr<IEffectBin> pEffect) noexcept
 
         if (GST_PAD_LINK_FAILED(gst_pad_link(chainSrc.get(), m_data_.effect_sel_pad)))
         {
-            MP_PRINTERR("AddEffect_: Failed to link chain -> input-selector\n");
+            MP_PRINTERR("AttachEffect_: Failed to link chain -> input-selector\n");
 
             gst_element_release_request_pad(m_data_.input_selector, m_data_.effect_sel_pad);
             gst_object_unref(m_data_.effect_sel_pad);
@@ -548,7 +548,7 @@ void Pipeline::AddEffect_(std::shared_ptr<IEffectBin> pEffect) noexcept
 
     m_pAttachedEffect_ = pEffect;
 
-    MP_PRINT("AddEffect_: Effect chain attached and active.\n");
+    MP_PRINT("AttachEffect_: Effect chain attached and active.\n");
 }
 
 void Pipeline::LoadAudio_(const std::string& uriPath) noexcept
