@@ -23,15 +23,16 @@ class Pipeline
         GstElement* audioconvert{};
         GstElement* audioresample{};
         GstElement* tee{};
+        GstPad*     effect_tee_pad{};
 
         GstElement* queue_identity{};
         GstElement* identity{};
+        GstPad*     dry_sel_pad{};
 
         GstElement* input_selector{};
         GstElement* audiosink{};
 
         GstElement* queue_wet{};
-        GstPad*     effect_tee_pad{};
         GstPad*     effect_sel_pad{};
     };
     struct alignas(64) Task
@@ -41,6 +42,7 @@ class Pipeline
             None         ,
             BuildPipeline,
             AttachEffect ,
+            DetachEffect ,
             LoadAudio    ,
             Play         ,
             Pause        ,
@@ -71,11 +73,12 @@ public:
 
 
 public:
-    auto QueryPosition () const noexcept -> std::size_t;
-    auto QueryDuration () const noexcept -> std::size_t;
-    auto IsPlaying     () const noexcept -> bool;
+    auto QueryPosition     () const noexcept -> std::size_t;
+    auto QueryDuration     () const noexcept -> std::size_t;
+    auto IsPlaying         () const noexcept -> bool;
 
 //  void AttachEffect  (std::shared_ptr<IEffectBin> pEffect) noexcept;
+//  void DetachEffect  () noexcept;
     void LoadAudio     (const std::string& uriPath) noexcept;
     void Play          () noexcept;
     void Pause         () noexcept;
@@ -110,6 +113,7 @@ private:
     void SetupGMainLoop_      ();
 
     void AttachEffect_        (std::shared_ptr<IEffectBin> pEffect) noexcept;
+    void DetachEffect_        () noexcept;
     void LoadAudio_           (const std::string& uriPath) noexcept;
     void Play_                () noexcept;
     void Pause_               () noexcept;

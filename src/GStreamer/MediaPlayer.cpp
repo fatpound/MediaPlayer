@@ -58,7 +58,7 @@ void MediaPlayer::Seek(const std::size_t& pos) noexcept
 
 void MediaPlayer::SetPitchValue(const double val) noexcept
 {
-    if (m_pPitchEffect_ not_eq nullptr)
+    if (m_pPitchEffect_.use_count() > 1L)
     {
         m_pPitchEffect_->SetPitchAsync(m_pipeline_, val);
     }

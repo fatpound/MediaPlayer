@@ -100,6 +100,11 @@ auto Pipeline::IsPlaying() const noexcept -> bool
 //     DispatchTask_({ .type = Task::Type::AttachEffect, .effect_chain = pEffect, .pipeline = this });
 // }
 
+// void Pipeline::DetachEffect(std::shared_ptr<IEffectBin> pEffect) noexcept
+// {
+//     DispatchTask_({ .type = Task::Type::DetachEffect, .pipeline = this });
+// }
+
 void Pipeline::LoadAudio(const std::string& uriPath) noexcept
 {
     if (m_loaded_uri_ not_eq uriPath)
@@ -199,14 +204,15 @@ auto Pipeline::S_TaskHandler_(const gpointer data) noexcept -> gboolean
 
     switch (task.type)
     {
-    case Task::Type::BuildPipeline: pipeline.Setup_();                break;
-    case Task::Type::AttachEffect:     pipeline.AttachEffect_(task.effect); break;
-    case Task::Type::LoadAudio:     pipeline.LoadAudio_(task.name);   break;
-    case Task::Type::Play:          pipeline.Play_();                 break;
-    case Task::Type::Pause:         pipeline.Pause_();                break;
-    case Task::Type::Seek:          pipeline.Seek_(task.seek_val);    break;
-    case Task::Type::RunFunc:       pipeline.RunFunc_(task.func);     break;
-    case Task::Type::Quit:          pipeline.Quit_();                 break;
+    case Task::Type::BuildPipeline: pipeline.Setup_();                   break;
+    case Task::Type::AttachEffect:  pipeline.AttachEffect_(task.effect); break;
+    case Task::Type::DetachEffect:  pipeline.DetachEffect_();            break;
+    case Task::Type::LoadAudio:     pipeline.LoadAudio_(task.name);      break;
+    case Task::Type::Play:          pipeline.Play_();                    break;
+    case Task::Type::Pause:         pipeline.Pause_();                   break;
+    case Task::Type::Seek:          pipeline.Seek_(task.seek_val);       break;
+    case Task::Type::RunFunc:       pipeline.RunFunc_(task.func);        break;
+    case Task::Type::Quit:          pipeline.Quit_();                    break;
 
     default:
         MP_LOGWARN("Unhandled task type: %d\n", static_cast<int>(task.type));
@@ -380,11 +386,11 @@ void Pipeline::SetupIdentityBranch_() noexcept
         }
     }
 
-    auto* const pad = gst_element_request_pad_simple(m_data_.input_selector, "sink_%u");
-    MP_PRINT("Obtained 'identity_pad': %s\n", gst_pad_get_name(pad));
+    m_data_.dry_sel_pad = gst_element_request_pad_simple(m_data_.input_selector, "sink_%u");
+    MP_PRINT("Obtained 'identity_pad': %s\n", gst_pad_get_name(m_data_.dry_sel_pad));
 
     if (const auto drySrcPad = UniqueGstPtr<GstPad>{ gst_element_get_static_pad(m_data_.identity, "src") };
-        GST_PAD_LINK_FAILED(gst_pad_link(drySrcPad.get(), pad)))
+        GST_PAD_LINK_FAILED(gst_pad_link(drySrcPad.get(), m_data_.dry_sel_pad)))
     {
         MP_PRINTERR("Failed to link identity to input-selector.\n");
     }
@@ -549,6 +555,56 @@ void Pipeline::AttachEffect_(std::shared_ptr<IEffectBin> pEffect) noexcept
     m_pAttachedEffect_ = pEffect;
 
     MP_PRINT("AttachEffect_: Effect chain attached and active.\n");
+}
+
+void Pipeline::DetachEffect_() noexcept
+{
+    if (m_pAttachedEffect_ == nullptr)
+    {
+        MP_PRINTERR("DetachEffect_: No effect chain attached.\n");
+        return;
+    }
+
+    {
+        auto* const pEffectBin = m_pAttachedEffect_->GetBin();
+
+        if (m_data_.dry_sel_pad not_eq nullptr)
+        {
+            g_object_set(m_data_.input_selector, "active-pad", m_data_.dry_sel_pad, nullptr);
+            MP_PRINT("DetachEffect_: Switched input-selector to dry path.\n");
+        }
+
+        if (m_data_.effect_sel_pad not_eq nullptr)
+        {
+            gst_element_release_request_pad(m_data_.input_selector, m_data_.effect_sel_pad);
+            gst_object_unref(m_data_.effect_sel_pad);
+            m_data_.effect_sel_pad = nullptr;
+        }
+
+        if (m_data_.effect_tee_pad not_eq nullptr)
+        {
+            gst_element_release_request_pad(m_data_.tee, m_data_.effect_tee_pad);
+            gst_object_unref(m_data_.effect_tee_pad);
+            m_data_.effect_tee_pad = nullptr;
+        }
+
+        if (m_data_.queue_wet not_eq nullptr)
+        {
+            gst_element_set_state(m_data_.queue_wet, GST_STATE_NULL);
+            gst_bin_remove(GST_BIN(m_pPipeline_), m_data_.queue_wet);
+            m_data_.queue_wet = nullptr;
+        }
+
+        if (pEffectBin not_eq nullptr)
+        {
+            gst_element_set_state(pEffectBin, GST_STATE_NULL);
+            gst_bin_remove(GST_BIN(m_pPipeline_), pEffectBin);
+        }
+    }
+
+    m_pAttachedEffect_.reset();
+
+    MP_PRINT("DetachEffect_: Effect chain detached and cleaned up.\n");
 }
 
 void Pipeline::LoadAudio_(const std::string& uriPath) noexcept
