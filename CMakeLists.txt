@@ -27,7 +27,7 @@ qt_add_executable(MediaPlayer
     src/GStreamer/MediaPlayer.cpp
     src/GStreamer/Manager.cpp
     src/GStreamer/Pipeline.cpp
-    src/GStreamer/IEffectBin.cpp
+    src/GStreamer/IAudioEffectBin.cpp
     src/GStreamer/PitchEffectBin.cpp
     src/MediaPlayerWrapper.cpp
     src/main.cpp
