@@ -3,13 +3,13 @@
 
 #include <_macros/Namespaces.hpp>
 
-#include <GStreamer/IEffectBin.hpp>
+#include <GStreamer/IAudioEffectBin.hpp>
 
 GST_BEGIN_NAMESPACE
 
 class Pipeline;
 
-class PitchEffectBin : public IEffectBin
+class PitchEffectBin : public IAudioEffectBin
 {
 public:
     PitchEffectBin() noexcept;
@@ -18,7 +18,7 @@ public:
 
     auto operator = (const PitchEffectBin&)     -> PitchEffectBin& = default;
     auto operator = (PitchEffectBin&&) noexcept -> PitchEffectBin& = default;
-    virtual ~PitchEffectBin() noexcept = default;
+    virtual ~PitchEffectBin() noexcept                             = default;
 
 
 public:

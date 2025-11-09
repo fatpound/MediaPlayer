@@ -1,1 +1,1 @@
-#include <GStreamer/IEffectBin.hpp>
+#include <GStreamer/IAudioEffectBin.hpp>

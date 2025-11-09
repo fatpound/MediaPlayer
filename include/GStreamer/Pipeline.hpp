@@ -4,7 +4,7 @@
 #include <_macros/Namespaces.hpp>
 
 #include <GStreamer/FatGst.hpp>
-#include <GStreamer/IEffectBin.hpp>
+#include <GStreamer/IAudioEffectBin.hpp>
 
 #include <cstdint>
 
@@ -51,17 +51,17 @@ class Pipeline
             Quit
         };
 
-        Type                        type{ Type::None };
-        std::string                 name{};
-        std::size_t                 seek_val{};
-        std::function<void()>       func{};
-        std::shared_ptr<IEffectBin> effect{};
-        Pipeline*                   pipeline{};
+        Type                              type{ Type::None };
+        std::string                       name{};
+        std::size_t                       seek_val{};
+        std::function<void()>             func{};
+        std::shared_ptr<IAudioEffectBin>  effect{};
+        Pipeline*                         pipeline{};
     };
 
 
 public:
-    explicit Pipeline(std::shared_ptr<IEffectBin> pEffect);
+    explicit Pipeline(std::shared_ptr<IAudioEffectBin> pEffect);
 
     explicit Pipeline();
     explicit Pipeline(const Pipeline&)     = delete;
@@ -77,12 +77,10 @@ public:
     auto QueryDuration     () const noexcept -> std::size_t;
     auto IsPlaying         () const noexcept -> bool;
 
-//  void AttachEffect  (std::shared_ptr<IEffectBin> pEffect) noexcept;
-//  void DetachEffect  () noexcept;
-    void LoadAudio     (const std::string& uriPath) noexcept;
-    void Play          () noexcept;
-    void Pause         () noexcept;
-    void Seek          (const std::size_t& pos) noexcept;
+    void LoadAudio         (const std::string& uriPath) noexcept;
+    void Play              () noexcept;
+    void Pause             () noexcept;
+    void Seek              (const std::size_t& pos) noexcept;
 
     void RunFunc                 (std::function<void()>     func) noexcept;
     void SetStateChangedCallback (std::function<void(bool)> callback);
@@ -112,8 +110,8 @@ private:
     void SetupIdentityBranch_ () noexcept;
     void SetupGMainLoop_      ();
 
-    void AttachEffect_        (std::shared_ptr<IEffectBin> pEffect) noexcept;
-    void DetachEffect_        () noexcept;
+    void AttachAudioEffect_   (std::shared_ptr<IAudioEffectBin> pEffect) noexcept;
+    void DetachAudioEffect_   () noexcept;
     void LoadAudio_           (const std::string& uriPath) noexcept;
     void Play_                () noexcept;
     void Pause_               () noexcept;
@@ -141,7 +139,7 @@ private:
 
     std::function<void(bool)>     m_state_change_callback_;
     std::function<void()>         m_media_change_callback_;
-    std::shared_ptr<IEffectBin>   m_pAttachedEffect_;
+    std::shared_ptr<IAudioEffectBin>   m_pAttachedEffect_;
 
     std::binary_semaphore         m_work_start_signal_{ 0 };
     std::thread                   m_worker_;
