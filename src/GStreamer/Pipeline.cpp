@@ -1,7 +1,6 @@
 #include <GStreamer/Pipeline.hpp>
 #include <GStreamer/CommonUtilities.hpp>
-
-#include <_macros/Logging.hpp>
+#include <GStreamer/Logging.hpp>
 
 #include <QDebug>
 

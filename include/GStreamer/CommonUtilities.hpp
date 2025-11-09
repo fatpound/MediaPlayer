@@ -1,10 +1,10 @@
 #ifndef COMMONUTILITIES_HPP
 #define COMMONUTILITIES_HPP
 
-#include <_macros/Logging.hpp>
 #include <_macros/Namespaces.hpp>
 
 #include <GStreamer/FatGst.hpp>
+#include <GStreamer/Logging.hpp>
 
 #include <string>
 #include <memory>

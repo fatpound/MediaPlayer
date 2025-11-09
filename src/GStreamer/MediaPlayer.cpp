@@ -1,6 +1,5 @@
 #include <GStreamer/MediaPlayer.hpp>
-
-#include <_macros/Logging.hpp>
+#include <GStreamer/Logging.hpp>
 
 #include <QDebug>
 #include <QUrl>
@@ -69,7 +68,7 @@ void MediaPlayer::SetStateChangedCallback(std::function<void(bool)> callback)
     m_pipeline_.SetStateChangedCallback(callback);
 }
 
-void MediaPlayer::SetMediaChangedCallback(std::function<void()>     callback)
+void MediaPlayer::SetMediaChangedCallback(std::function<void()> callback)
 {
     m_pipeline_.SetMediaChangedCallback(callback);
 }

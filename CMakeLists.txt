@@ -15,6 +15,7 @@ qt_add_resources(MEDIA_RESOURCES resources.qrc)
 
 qt_add_executable(MediaPlayer
 
+    include/GStreamer/Logging.hpp
     include/GStreamer/CommonUtilities.hpp
     include/GStreamer/FatGst.hpp
     include/GStreamer/MediaPlayer.hpp
@@ -32,7 +33,6 @@ qt_add_executable(MediaPlayer
     src/MediaPlayerWrapper.cpp
     src/main.cpp
 
-    _macros/Logging.hpp
     _macros/Namespaces.hpp
 
     _misc/FatCodex/Macros/ExternalWarnings_MSVC.hpp

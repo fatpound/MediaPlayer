@@ -1,8 +1,7 @@
 #include <GStreamer/PitchEffectBin.hpp>
 #include <GStreamer/CommonUtilities.hpp>
 #include <GStreamer/Pipeline.hpp>
-
-#include <_macros/Logging.hpp>
+#include <GStreamer/Logging.hpp>
 
 GST_BEGIN_NAMESPACE
 
