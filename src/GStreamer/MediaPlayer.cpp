@@ -1,5 +1,4 @@
 #include <GStreamer/MediaPlayer.hpp>
-#include <GStreamer/Logging.hpp>
 
 GST_BEGIN_NAMESPACE
 
@@ -8,12 +7,12 @@ MediaPlayer::MediaPlayer()
     m_pPitchEffect_(std::make_shared<PitchEffectBin>()),
     m_pipeline_(m_pPitchEffect_)
 {
-    MP_PRINT("Starting MediaPlayer...\n");
+    g_print("Starting MediaPlayer...\n");
 }
 
 MediaPlayer::~MediaPlayer()
 {
-    MP_PRINT("Shutting down MediaPlayer...\n");
+    g_print("Shutting down MediaPlayer...\n");
 }
 
 

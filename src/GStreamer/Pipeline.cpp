@@ -1,8 +1,5 @@
 #include <GStreamer/Pipeline.hpp>
 #include <GStreamer/CommonUtilities.hpp>
-#include <GStreamer/Logging.hpp>
-
-#include <QDebug>
 
 #include <stdexcept>
 #include <new>
@@ -23,12 +20,12 @@ Pipeline::Pipeline()
     :
     m_worker_(&Pipeline::WorkerLoop_, this)
 {
-    MP_PRINT("Initializing MediaPlayer Pipeline...\n");
+    g_print("Initializing MediaPlayer Pipeline...\n");
 
     SetupGMainLoop_();
     DispatchTask_({ .type = Task::Type::BuildPipeline, .pipeline = this });
 
-    MP_PRINT("Worker thread will start soon...\n");
+    g_print("Worker thread will start soon...\n");
     m_work_start_signal_.release();
 }
 
@@ -36,21 +33,21 @@ Pipeline::~Pipeline() noexcept
 {
     try
     {
-        MP_PRINT("Stopping MediaPlayer Pipeline...\n");
+        g_print("Stopping MediaPlayer Pipeline...\n");
         DispatchTask_({ .type = Task::Type::Quit, .pipeline = this });
 
         m_worker_.join();
-        MP_PRINT("[DONE]\n");
+        g_print("[DONE]\n");
 
         CleanupGMainLoop_();
     }
     catch ([[maybe_unused]] const std::exception& ex)
     {
-        MP_PRINTERR("Exception caught in ~MediaPlayer: %s\n", ex.what());
+        g_printerr("Exception caught in ~MediaPlayer: %s\n", ex.what());
     }
     catch (...)
     {
-        MP_PRINTERR("Non-STD Exception caught in ~MediaPlayer!\n");
+        g_printerr("Non-STD Exception caught in ~MediaPlayer!\n");
     }
 }
 
@@ -104,7 +101,7 @@ void Pipeline::LoadAudio(const std::string& uriPath) noexcept
     }
     else
     {
-        MP_PRINT("The audio had already been loaded.\n");
+        g_print("The audio had already been loaded.\n");
     }
 }
 
@@ -154,7 +151,7 @@ auto Pipeline::S_BusCallback_(GstBus*, GstMessage* const msg, const gpointer dat
         break;
 
     case GST_MESSAGE_EOS:
-        MP_PRINT("End-Of-Stream reached.\n");
+        g_print("End-Of-Stream reached.\n");
         pipeline.Seek(0U);
         pipeline.Pause();
         break;
@@ -165,11 +162,11 @@ auto Pipeline::S_BusCallback_(GstBus*, GstMessage* const msg, const gpointer dat
         break;
 
     case GST_MESSAGE_WARNING:
-        MP_PRINT("GST_MESSAGE_WARNING\n");
+        g_print("GST_MESSAGE_WARNING\n");
         break;
 
     case GST_MESSAGE_INFO:
-        MP_PRINT("GST_MESSAGE_INFO\n");
+        g_print("GST_MESSAGE_INFO\n");
         break;
 
     default:
@@ -186,7 +183,7 @@ auto Pipeline::S_TaskHandler_(const gpointer data) noexcept -> gboolean
 
     if (pipeline.m_pPipeline_ == nullptr and task.type > Task::Type::Pause)
     {
-        MP_PRINTERR("Pipeline does NOT exist yet and tasks will not be handled!\n");
+        g_printerr("Pipeline does NOT exist yet and tasks will not be handled!\n");
 
         return G_SOURCE_REMOVE;
     }
@@ -204,7 +201,7 @@ auto Pipeline::S_TaskHandler_(const gpointer data) noexcept -> gboolean
     case Task::Type::Quit:          pipeline.Quit_();                         break;
 
     default:
-        MP_LOGWARN("Unhandled task type: %d\n", static_cast<int>(task.type));
+        g_warning("Unhandled task type: %d\n", static_cast<int>(task.type));
         break;
     }
 
@@ -213,28 +210,28 @@ auto Pipeline::S_TaskHandler_(const gpointer data) noexcept -> gboolean
 
 void Pipeline::S_PadAddedHandlerOf_uridecodebin_([[maybe_unused]] GstElement* src, GstPad* newPad, Data* data) noexcept
 {
-    MP_PRINT("S_PadAddedHandlerOf_uridecodebin_ has been called.\n");
-    MP_PRINT("Linking: '%s' '%s' pad to '%s' sink pad ... ", GST_ELEMENT_NAME(src), GST_PAD_NAME(newPad), GST_ELEMENT_NAME(data->audioconvert));
+    g_print("S_PadAddedHandlerOf_uridecodebin_ has been called.\n");
+    g_print("Linking: '%s' '%s' pad to '%s' sink pad ... ", GST_ELEMENT_NAME(src), GST_PAD_NAME(newPad), GST_ELEMENT_NAME(data->audioconvert));
 
     GstPad*  const audioconvert_1_sink_pad = gst_element_get_static_pad(data->audioconvert, "sink");
     GstCaps* const new_pad_caps            = gst_pad_get_current_caps(newPad);
 
     if (gst_pad_is_linked(audioconvert_1_sink_pad))
     {
-        MP_PRINTERR("\n%s sink pad has already been linked. Ignoring.\n", GST_ELEMENT_NAME(data->audioconvert));
+        g_printerr("\n%s sink pad has already been linked. Ignoring.\n", GST_ELEMENT_NAME(data->audioconvert));
         goto exit;
     }
 
     if (const auto& new_pad_caps_type = gst_structure_get_name(gst_caps_get_structure(new_pad_caps, 0));
         g_str_has_prefix(new_pad_caps_type, "audio/x-raw") == FALSE)
     {
-        MP_PRINTERR("\nIt has type '%s' which is not raw audio. Ignoring.\n", new_pad_caps_type);
+        g_printerr("\nIt has type '%s' which is not raw audio. Ignoring.\n", new_pad_caps_type);
         goto exit;
     }
 
     {
         [[maybe_unused]] const auto result = GST_PAD_LINK_FAILED(gst_pad_link(newPad, audioconvert_1_sink_pad));
-        MP_PRINT("%s\n", result ? "[FAILED]" : "[DONE]");
+        g_print("%s\n", result ? "[FAILED]" : "[DONE]");
     }
 
 
@@ -255,25 +252,25 @@ auto Pipeline::GetState_() const noexcept -> GstState
 
 void Pipeline::SetUri_(const std::string& uriPath)
 {
-    MP_PRINT("Setting URI to: '%s' ... ", uriPath.c_str());
+    g_print("Setting URI to: '%s' ... ", uriPath.c_str());
     g_object_set(m_data_.uridecodebin, "uri", uriPath.c_str(), nullptr);
-    MP_PRINT("[DONE]\n");
+    g_print("[DONE]\n");
 
     m_loaded_uri_ = uriPath;
 }
 
 void Pipeline::SetState_(const GstState new_state) noexcept
 {
-    MP_PRINT("Setting pipeline state to: %s ... ", gst_element_state_get_name(new_state));
+    g_print("Setting pipeline state to: %s ... ", gst_element_state_get_name(new_state));
 
     if (gst_element_set_state(m_pPipeline_, new_state) == GST_STATE_CHANGE_FAILURE)
     {
-        MP_PRINTERR("[FAILED]\n");
+        g_printerr("[FAILED]\n");
         return;
     }
 
     m_state_ = new_state;
-    MP_PRINT("[DONE]\n");
+    g_print("[DONE]\n");
 
     if (GetState_() == GST_STATE_PLAYING or GetState_() == GST_STATE_PAUSED)
     {
@@ -285,7 +282,7 @@ void Pipeline::Setup_() noexcept
 {
     if (m_pPipeline_ = gst_pipeline_new("media-player-audio-pipeline"); m_pPipeline_ == nullptr)
     {
-        MP_PRINTERR("'media-player-audio-pipeline' could be created!\n");
+        g_printerr("'media-player-audio-pipeline' could be created!\n");
         return;
     }
 
@@ -304,7 +301,7 @@ void Pipeline::Setup_() noexcept
     g_object_set(m_data_.audiosink, "low-latency", true, nullptr);
 #endif
 
-    MP_PRINT("Pipeline core has been built successfully.\n");
+    g_print("Pipeline core has been built successfully.\n");
 }
 
 void Pipeline::SetupElements_() noexcept
@@ -371,23 +368,23 @@ void Pipeline::SetupIdentityBranch_() noexcept
 
         if (GST_PAD_LINK_FAILED(gst_pad_link(teeCleanSrcPad.get(), drySinkPad.get())))
         {
-            MP_PRINTERR("Failed to link tee to identity.\n");
+            g_printerr("Failed to link tee to identity.\n");
         }
     }
 
     m_data_.dry_sel_pad = gst_element_request_pad_simple(m_data_.input_selector, "sink_%u");
-    MP_PRINT("Obtained 'identity_pad': %s\n", gst_pad_get_name(m_data_.dry_sel_pad));
+    g_print("Obtained 'identity_pad': %s\n", gst_pad_get_name(m_data_.dry_sel_pad));
 
     if (const auto drySrcPad = UniqueGstPtr<GstPad>{ gst_element_get_static_pad(m_data_.identity, "src") };
         GST_PAD_LINK_FAILED(gst_pad_link(drySrcPad.get(), m_data_.dry_sel_pad)))
     {
-        MP_PRINTERR("Failed to link identity to input-selector.\n");
+        g_printerr("Failed to link identity to input-selector.\n");
     }
 }
 
 void Pipeline::SetupGMainLoop_()
 {
-    MP_PRINT("Setting up GMainLoop ... ");
+    g_print("Setting up GMainLoop ... ");
 
     if (m_pContext_ = g_main_context_new(); m_pContext_ == nullptr)
     {
@@ -399,22 +396,22 @@ void Pipeline::SetupGMainLoop_()
         throw std::runtime_error{"Could not create loop for GMainLoop!"};
     }
 
-    MP_PRINT("[DONE]\n");
+    g_print("[DONE]\n");
 }
 
 void Pipeline::AttachAudioEffect_(std::shared_ptr<IAudioEffectBin> pEffect) noexcept
 {
     if (pEffect == nullptr)
     {
-        MP_PRINTERR(__func__);
-        MP_PRINTERR(": null chain\n");
+        g_printerr(__func__);
+        g_printerr(": null chain\n");
         return;
     }
 
     if (m_pAttachedEffect_ not_eq nullptr)
     {
-        MP_PRINTERR(__func__);
-        MP_PRINTERR(": a chain is already attached. Remove it first.\n");
+        g_printerr(__func__);
+        g_printerr(": a chain is already attached. Remove it first.\n");
         return;
     }
 
@@ -422,8 +419,8 @@ void Pipeline::AttachAudioEffect_(std::shared_ptr<IAudioEffectBin> pEffect) noex
 
     if (gst_bin_add(GST_BIN(m_pPipeline_), pEffectBin) == FALSE)
     {
-        MP_PRINTERR(__func__);
-        MP_PRINTERR(": Could not add chain bin to pipeline\n");
+        g_printerr(__func__);
+        g_printerr(": Could not add chain bin to pipeline\n");
         return;
     }
 
@@ -431,8 +428,8 @@ void Pipeline::AttachAudioEffect_(std::shared_ptr<IAudioEffectBin> pEffect) noex
 
     if (m_data_.queue_wet == nullptr)
     {
-        MP_PRINTERR(__func__);
-        MP_PRINTERR(": Failed to create queue-wet\n");
+        g_printerr(__func__);
+        g_printerr(": Failed to create queue-wet\n");
 
         gst_bin_remove(GST_BIN(m_pPipeline_), pEffectBin);
 
@@ -441,8 +438,8 @@ void Pipeline::AttachAudioEffect_(std::shared_ptr<IAudioEffectBin> pEffect) noex
 
     if (gst_bin_add(GST_BIN(m_pPipeline_), m_data_.queue_wet) == FALSE)
     {
-        MP_PRINTERR(__func__);
-        MP_PRINTERR(": Could not add queue-wet to pipeline\n");
+        g_printerr(__func__);
+        g_printerr(": Could not add queue-wet to pipeline\n");
 
         gst_bin_remove(GST_BIN(m_pPipeline_), pEffectBin);
         gst_object_unref(m_data_.queue_wet);
@@ -458,8 +455,8 @@ void Pipeline::AttachAudioEffect_(std::shared_ptr<IAudioEffectBin> pEffect) noex
 
     if (m_data_.effect_tee_pad == nullptr)
     {
-        MP_PRINTERR(__func__);
-        MP_PRINTERR(": Failed to request tee pad\n");
+        g_printerr(__func__);
+        g_printerr(": Failed to request tee pad\n");
 
         gst_bin_remove(GST_BIN(m_pPipeline_), m_data_.queue_wet);
         gst_bin_remove(GST_BIN(m_pPipeline_), pEffectBin);
@@ -475,8 +472,8 @@ void Pipeline::AttachAudioEffect_(std::shared_ptr<IAudioEffectBin> pEffect) noex
 
         if (GST_PAD_LINK_FAILED(gst_pad_link(m_data_.effect_tee_pad, queueSink.get())))
         {
-            MP_PRINTERR(__func__);
-            MP_PRINTERR(": Failed to link tee -> queue_wet\n");
+            g_printerr(__func__);
+            g_printerr(": Failed to link tee -> queue_wet\n");
 
             gst_element_release_request_pad(m_data_.tee, m_data_.effect_tee_pad);
             gst_object_unref(m_data_.effect_tee_pad);
@@ -495,8 +492,8 @@ void Pipeline::AttachAudioEffect_(std::shared_ptr<IAudioEffectBin> pEffect) noex
 
         if (GST_PAD_LINK_FAILED(gst_pad_link(queueSrc.get(), chainSink.get())))
         {
-            MP_PRINTERR(__func__);
-            MP_PRINTERR(": Failed to link queue_wet -> chain\n");
+            g_printerr(__func__);
+            g_printerr(": Failed to link queue_wet -> chain\n");
 
             gst_pad_unlink(m_data_.effect_tee_pad, queueSrc.get());
             gst_element_release_request_pad(m_data_.tee, m_data_.effect_tee_pad);
@@ -514,8 +511,8 @@ void Pipeline::AttachAudioEffect_(std::shared_ptr<IAudioEffectBin> pEffect) noex
 
     if (m_data_.effect_sel_pad == nullptr)
     {
-        MP_PRINTERR(__func__);
-        MP_PRINTERR(": Failed to request input-selector sink pad\n");
+        g_printerr(__func__);
+        g_printerr(": Failed to request input-selector sink pad\n");
 
         gst_element_release_request_pad(m_data_.tee, m_data_.effect_tee_pad);
         gst_object_unref(m_data_.effect_tee_pad);
@@ -532,8 +529,8 @@ void Pipeline::AttachAudioEffect_(std::shared_ptr<IAudioEffectBin> pEffect) noex
 
         if (GST_PAD_LINK_FAILED(gst_pad_link(chainSrc.get(), m_data_.effect_sel_pad)))
         {
-            MP_PRINTERR(__func__);
-            MP_PRINTERR(": Failed to link chain -> input-selector\n");
+            g_printerr(__func__);
+            g_printerr(": Failed to link chain -> input-selector\n");
 
             gst_element_release_request_pad(m_data_.input_selector, m_data_.effect_sel_pad);
             gst_object_unref(m_data_.effect_sel_pad);
@@ -553,16 +550,16 @@ void Pipeline::AttachAudioEffect_(std::shared_ptr<IAudioEffectBin> pEffect) noex
 
     m_pAttachedEffect_ = pEffect;
 
-    MP_PRINT(__func__);
-    MP_PRINT(": Effect chain attached and active.\n");
+    g_print(__func__);
+    g_print(": Effect chain attached and active.\n");
 }
 
 void Pipeline::DetachAudioEffect_() noexcept
 {
     if (m_pAttachedEffect_ == nullptr)
     {
-        MP_PRINTERR(__func__);
-        MP_PRINTERR(": No audio effect chain attached.\n");
+        g_printerr(__func__);
+        g_printerr(": No audio effect chain attached.\n");
         return;
     }
 
@@ -573,8 +570,8 @@ void Pipeline::DetachAudioEffect_() noexcept
         {
             g_object_set(m_data_.input_selector, "active-pad", m_data_.dry_sel_pad, nullptr);
 
-            MP_PRINTERR(__func__);
-            MP_PRINT(": Switched input-selector to dry path.\n");
+            g_printerr(__func__);
+            g_print(": Switched input-selector to dry path.\n");
         }
 
         if (m_data_.effect_sel_pad not_eq nullptr)
@@ -607,17 +604,17 @@ void Pipeline::DetachAudioEffect_() noexcept
 
     m_pAttachedEffect_.reset();
 
-    MP_PRINT(__func__);
-    MP_PRINT(": Audio effect chain detached and cleaned up.\n");
+    g_print(__func__);
+    g_print(": Audio effect chain detached and cleaned up.\n");
 }
 
 void Pipeline::LoadAudio_(const std::string& uriPath) noexcept
 {
-    MP_PRINT("Executing task: 'LoadAudio'\n");
+    g_print("Executing task: 'LoadAudio'\n");
 
     if (m_pPipeline_ == nullptr)
     {
-        MP_PRINTERR("Pipeline does not exist!\n");
+        g_printerr("Pipeline does not exist!\n");
         return;
     }
 
@@ -628,17 +625,17 @@ void Pipeline::LoadAudio_(const std::string& uriPath) noexcept
 
 void Pipeline::Play_() noexcept
 {
-    MP_PRINT("Executing task: 'Play'\n");
+    g_print("Executing task: 'Play'\n");
 
     if (m_pPipeline_ == nullptr)
     {
-        MP_PRINTERR("Pipeline does not exist!\n");
+        g_printerr("Pipeline does not exist!\n");
         return;
     }
 
     if (GetState_() == GST_STATE_PLAYING)
     {
-        MP_PRINT("Pipeline is already in the playing state.\n");
+        g_print("Pipeline is already in the playing state.\n");
         return;
     }
 
@@ -648,23 +645,23 @@ void Pipeline::Play_() noexcept
     }
     else
     {
-        MP_LOGWARN("No audio is loaded.\n");
+        g_warning("No audio is loaded.\n");
     }
 }
 
 void Pipeline::Pause_() noexcept
 {
-    MP_PRINT("Executing task: 'Pause'\n");
+    g_print("Executing task: 'Pause'\n");
 
     if (m_pPipeline_ == nullptr)
     {
-        MP_PRINTERR("Pipeline does not exist!\n");
+        g_printerr("Pipeline does not exist!\n");
         return;
     }
 
     if (GetState_() == GST_STATE_PAUSED)
     {
-        MP_PRINT("Pipeline is already in the paused state.\n");
+        g_print("Pipeline is already in the paused state.\n");
         return;
     }
 
@@ -673,21 +670,21 @@ void Pipeline::Pause_() noexcept
 
 void Pipeline::Seek_(const std::size_t& pos) noexcept
 {
-    MP_PRINT("Executing task: 'Seek'\n");
+    g_print("Executing task: 'Seek'\n");
 
     if (m_pPipeline_ == nullptr)
     {
-        MP_PRINTERR("Pipeline does not exist!\n");
+        g_printerr("Pipeline does not exist!\n");
         return;
     }
 
     if (m_loaded_uri_.empty())
     {
-        MP_LOGWARN("No audio is loaded.\n");
+        g_warning("No audio is loaded.\n");
         return;
     }
 
-    MP_PRINT("Seeking to %lld ... ", pos);
+    g_print("Seeking to %lld ... ", pos);
     if (gst_element_seek_simple(
             m_pPipeline_,
             GST_FORMAT_TIME,
@@ -695,9 +692,9 @@ void Pipeline::Seek_(const std::size_t& pos) noexcept
             pos * GST_MSECOND)
             == FALSE)
     {
-        MP_PRINTERR("[FAILED]\n");
+        g_printerr("[FAILED]\n");
     }
-    MP_PRINT("[DONE]\n");
+    g_print("[DONE]\n");
 }
 
 void Pipeline::RunFunc_(std::function<void()> func) noexcept
@@ -714,11 +711,11 @@ void Pipeline::RunFunc_(std::function<void()> func) noexcept
 
 void Pipeline::Quit_() noexcept
 {
-    MP_PRINT("Executing task: 'Quit'\n");
+    g_print("Executing task: 'Quit'\n");
 
     if (m_pLoop_ == nullptr)
     {
-        MP_PRINTERR("GMainLoop does not exist!\n");
+        g_printerr("GMainLoop does not exist!\n");
         return;
     }
 
@@ -733,12 +730,12 @@ void Pipeline::Quit_() noexcept
     }
     else
     {
-        MP_PRINTERR("Pipeline does NOT exist!\n");
+        g_printerr("Pipeline does NOT exist!\n");
     }
 
-    MP_PRINT("Sending GMainLoop quit signal to worker thread ... ");
+    g_print("Sending GMainLoop quit signal to worker thread ... ");
     g_main_loop_quit(m_pLoop_);
-    MP_PRINT("[DONE]\n");
+    g_print("[DONE]\n");
 }
 
 void Pipeline::DispatchTask_(Task&& task) noexcept
@@ -769,25 +766,25 @@ void Pipeline::OnGstStateChanged_(const bool isPlaying)
 
 void Pipeline::Cleanup_() noexcept
 {
-    MP_PRINT("CleanupPipeline_ has been called.\n");
+    g_print("CleanupPipeline_ has been called.\n");
 
     if (m_pPipeline_ == nullptr)
     {
-        MP_PRINTERR("Pipeline does not exist!\n");
+        g_printerr("Pipeline does not exist!\n");
         return;
     }
 
-    MP_PRINT("Cleaning up pipeline...\n");
+    g_print("Cleaning up pipeline...\n");
     SetState_(GST_STATE_NULL);
 
-    MP_PRINT("Removing pipeline bus watch ... ");
+    g_print("Removing pipeline bus watch ... ");
     if (const auto pPipelineBus = UniqueGstPtr<GstBus>{ gst_pipeline_get_bus(reinterpret_cast<GstPipeline*>(m_pPipeline_)) };
         gst_bus_remove_watch(pPipelineBus.get()) == FALSE)
     {
-        MP_PRINTERR("[FAILED]\n");
+        g_printerr("[FAILED]\n");
         return;
     }
-    MP_PRINT("[DONE]\n");
+    g_print("[DONE]\n");
 
     SetState_(GST_STATE_VOID_PENDING);
     gst_object_unref(m_pPipeline_);
@@ -795,12 +792,12 @@ void Pipeline::Cleanup_() noexcept
     m_pPipeline_ = nullptr;
     m_data_      = {};
 
-    MP_PRINT("Pipeline has been cleared.\n");
+    g_print("Pipeline has been cleared.\n");
 }
 
 void Pipeline::CleanupGMainLoop_() noexcept
 {
-    MP_PRINT("Cleaning-up GMainLoop...\n");
+    g_print("Cleaning-up GMainLoop...\n");
 
     g_main_loop_unref(m_pLoop_);
     m_pLoop_ = nullptr;
@@ -808,27 +805,27 @@ void Pipeline::CleanupGMainLoop_() noexcept
     g_main_context_unref(m_pContext_);
     m_pContext_ = nullptr;
 
-    MP_PRINT("GMainLoop has been freed...\n");
+    g_print("GMainLoop has been freed...\n");
 }
 
 void Pipeline::WorkerLoop_() noexcept
 {
     m_work_start_signal_.acquire();
-    MP_PRINT("Worker thread has just started.\n");
+    g_print("Worker thread has just started.\n");
 
-    MP_PRINT("Worker thread is setting its default context ... ");
+    g_print("Worker thread is setting its default context ... ");
     g_main_context_push_thread_default(m_pContext_);
-    MP_PRINT("[DONE]\n");
+    g_print("[DONE]\n");
 
-    MP_PRINT("GMainLoop is starting to run...\n");
+    g_print("GMainLoop is starting to run...\n");
     g_main_loop_run(m_pLoop_);
-    MP_PRINT("GMainLoop has Stopped.\n");
+    g_print("GMainLoop has Stopped.\n");
 
-    MP_PRINT("Worker thread is UN-setting its default context ... ");
+    g_print("Worker thread is UN-setting its default context ... ");
     g_main_context_pop_thread_default(m_pContext_);
-    MP_PRINT("[DONE]\n");
+    g_print("[DONE]\n");
 
-    MP_PRINT("Worker thread is Stopping ... ");
+    g_print("Worker thread is Stopping ... ");
 }
 
 GST_END_NAMESPACE

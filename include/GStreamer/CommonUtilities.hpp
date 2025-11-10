@@ -4,7 +4,6 @@
 #include <_macros/Namespaces.hpp>
 
 #include <GStreamer/FatGst.hpp>
-#include <GStreamer/Logging.hpp>
 
 #include <string>
 #include <memory>
@@ -20,7 +19,7 @@ inline auto CreateBin(const std::string& name) noexcept -> GstElement*
 
     if (ptr == nullptr)
     {
-        MP_PRINTERR("Could NOT create GStreamer bin %s!", name.c_str());
+        g_printerr("Could NOT create GStreamer bin %s!", name.c_str());
     }
 
     return ptr;
@@ -32,7 +31,7 @@ inline auto CreatePlugin(const std::string& factoryName, const std::string& name
 
     if (ptr == nullptr)
     {
-        MP_PRINTERR("Could NOT create GStreamer plugin '%s' of type '%s'\n", factoryName.c_str(), name.c_str());
+        g_printerr("Could NOT create GStreamer plugin '%s' of type '%s'\n", factoryName.c_str(), name.c_str());
     }
 
     return ptr;
@@ -40,12 +39,12 @@ inline auto CreatePlugin(const std::string& factoryName, const std::string& name
 
 inline void LinkElements(GstElement* const src, GstElement* const dest) noexcept
 {
-    MP_PRINT("Linking pipeline elements %s => %s ... ", gst_element_get_name(src), gst_element_get_name(dest));
+    g_print("Linking pipeline elements %s => %s ... ", gst_element_get_name(src), gst_element_get_name(dest));
     if (gst_element_link(src, dest) == FALSE)
     {
-        MP_PRINTERR("[FAILED]\n");
+        g_printerr("[FAILED]\n");
     }
-    MP_PRINT("[DONE]\n");
+    g_print("[DONE]\n");
 }
 
 inline void PrintErrorMsg(GstMessage* const msg) noexcept
@@ -54,8 +53,8 @@ inline void PrintErrorMsg(GstMessage* const msg) noexcept
     gchar* debug_info{};
 
     gst_message_parse_error(msg, &err, &debug_info);
-    MP_PRINTERR("Error received from element %s: %s\n", GST_OBJECT_NAME(msg->src), err->message);
-    MP_PRINTERR("Debugging information: %s\n", debug_info ? debug_info : "none");
+    g_printerr("Error received from element %s: %s\n", GST_OBJECT_NAME(msg->src), err->message);
+    g_printerr("Debugging information: %s\n", debug_info ? debug_info : "none");
     g_clear_error(&err);
     g_free(debug_info);
 }

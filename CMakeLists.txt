@@ -15,7 +15,7 @@ qt_add_resources(MEDIA_RESOURCES resources.qrc)
 
 qt_add_executable(MediaPlayer
 
-    include/GStreamer/Logging.hpp
+
     include/GStreamer/CommonUtilities.hpp
     include/GStreamer/FatGst.hpp
     include/GStreamer/MediaPlayer.hpp
