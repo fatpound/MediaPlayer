@@ -1,5 +1,5 @@
-#ifndef IAUDIOEFFECTBIN_H
-#define IAUDIOEFFECTBIN_H
+#ifndef IAUDIOEFFECTBIN_HPP
+#define IAUDIOEFFECTBIN_HPP
 
 #include <_macros/Namespaces.hpp>
 
@@ -33,4 +33,4 @@ private:
 
 GST_END_NAMESPACE
 
-#endif // IAUDIOEFFECTBIN_H
+#endif // IAUDIOEFFECTBIN_HPP
