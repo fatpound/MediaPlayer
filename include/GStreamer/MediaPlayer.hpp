@@ -6,9 +6,6 @@
 #include <GStreamer/Pipeline.hpp>
 #include <GStreamer/PitchEffectBin.hpp>
 
-#include <QObject>
-#include <QTimer>
-
 #include <string>
 #include <functional>
 

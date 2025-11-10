@@ -1,10 +1,6 @@
 #include <GStreamer/MediaPlayer.hpp>
 #include <GStreamer/Logging.hpp>
 
-#include <QDebug>
-#include <QUrl>
-#include <QString>
-
 GST_BEGIN_NAMESPACE
 
 MediaPlayer::MediaPlayer()

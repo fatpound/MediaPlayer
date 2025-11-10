@@ -94,16 +94,6 @@ auto Pipeline::IsPlaying() const noexcept -> bool
     return GetState_() == GST_STATE_PLAYING;
 }
 
-// void Pipeline::AttachEffect(std::shared_ptr<IEffectBin> pEffect) noexcept
-// {
-//     DispatchTask_({ .type = Task::Type::AttachEffect, .effect_chain = pEffect, .pipeline = this });
-// }
-
-// void Pipeline::DetachEffect(std::shared_ptr<IEffectBin> pEffect) noexcept
-// {
-//     DispatchTask_({ .type = Task::Type::DetachEffect, .pipeline = this });
-// }
-
 void Pipeline::LoadAudio(const std::string& uriPath) noexcept
 {
     if (m_loaded_uri_ not_eq uriPath)
