@@ -127,22 +127,21 @@ private:
 
 
 private:
-    Data                          m_data_{};
+    Data                               m_data_{};
 
-    GstElement*                   m_pPipeline_{};
-    GMainContext*                 m_pContext_{};
-    GMainLoop*                    m_pLoop_{};
-    GstState                      m_state_{ GST_STATE_NULL };
+    GstElement*                        m_pPipeline_{};
+    GMainContext*                      m_pContext_{};
+    GMainLoop*                         m_pLoop_{};
+    GstState                           m_state_{ GST_STATE_NULL };
 
-    std::string                   m_loaded_uri_;
-    bool                          m_new_media_loaded_{};
+    std::string                        m_loaded_uri_;
+    bool                               m_new_media_loaded_{};
 
-    std::function<void(bool)>     m_state_change_callback_;
-    std::function<void()>         m_media_change_callback_;
+    std::function<void(bool)>          m_state_change_callback_;
+    std::function<void()>              m_media_change_callback_;
     std::shared_ptr<IAudioEffectBin>   m_pAttachedEffect_;
-
-    std::binary_semaphore         m_work_start_signal_{ 0 };
-    std::thread                   m_worker_;
+    std::binary_semaphore              m_work_start_signal_{ 0 };
+    std::thread                        m_worker_;
 };
 
 GST_END_NAMESPACE
