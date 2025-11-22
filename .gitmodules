@@ -1,0 +1,3 @@
+[submodule "external/FatLibrary"]
+	path = external/FatLibrary
+	url = https://github.com/fatpound/FatLibrary

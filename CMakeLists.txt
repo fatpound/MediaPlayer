@@ -21,8 +21,6 @@ qt_add_executable(MediaPlayer
     src/MediaPlayerWrapper.cpp
     src/main.cpp
 
-    ##_misc/FatCodex/Macros/ExternalWarnings_MSVC.hpp
-
     ${MEDIA_RESOURCES}
 )
 
@@ -40,13 +38,14 @@ qt_add_qml_module(MediaPlayer
         MPProgressBar.qml
 )
 
-# include(_misc/FatCodex/CompileOptions.cmake)
+include(external/FatLibrary/_misc/FatCodex/CompileOptions.cmake)
 
 set(GSTREAMER_ROOT $ENV{GSTREAMER_1_0_ROOT_MSVC_X86_64})
 
 target_include_directories(MediaPlayer
     PUBLIC
         ${PROJECT_SOURCE_DIR}/include
+        ${PROJECT_SOURCE_DIR}/external/FatLibrary
         ${GSTREAMER_ROOT}/include/gstreamer-1.0
         ${GSTREAMER_ROOT}/include/glib-2.0
         ${GSTREAMER_ROOT}/lib/glib-2.0/include
@@ -59,7 +58,7 @@ target_link_directories(MediaPlayer
 
 target_link_libraries(MediaPlayer
     PRIVATE
-        #FatCodex::CompileOptions
+        FatCodex::CompileOptions
         glib-2.0.lib
         gobject-2.0.lib
         gstreamer-1.0.lib

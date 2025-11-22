@@ -1,4 +1,4 @@
-#include <GStreamer/Manager.hpp>
+#include <_exp/GStreamer/Manager.hpp>
 
 #include "MediaPlayerWrapper.hpp"
 
@@ -11,7 +11,7 @@ auto main(int argc, char *argv[]) -> int
 {
     QGuiApplication app(argc, argv);
 
-    const gstreamer::Manager gst_mgr{ argc, argv };
+    const fatx::gstreamer::Manager gst_mgr{ argc, argv };
 
     qmlRegisterType<media_player::MediaPlayerWrapper>("Custom.MediaPlayer", 1, 0, "MediaPlayerWrapper");
 
