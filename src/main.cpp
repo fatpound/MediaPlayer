@@ -5,15 +5,13 @@
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
 
-// NOLINTBEGIN(readability-static-accessed-through-instance)
-
 auto main(int argc, char *argv[]) -> int
 {
     QGuiApplication app(argc, argv);
 
-    const fatx::gstreamer::Manager gst_mgr{ argc, argv };
+    const auto gst_mgr = fatx::gstreamer::Manager{ argc, argv };
 
-    qmlRegisterType<media_player::MediaPlayerWrapper>("Custom.MediaPlayer", 1, 0, "MediaPlayerWrapper");
+    qmlRegisterType<media_player::MediaPlayerWrapper>("FatPound.MediaPlayer", 0, 1, "MediaPlayerWrapper");
 
     QQmlApplicationEngine engine;
 
@@ -21,7 +19,5 @@ auto main(int argc, char *argv[]) -> int
 
     engine.loadFromModule("MediaPlayer", "Main");
 
-    return app.exec();
+    return QGuiApplication::exec();
 }
-
-// NOLINTEND(readability-static-accessed-through-instance)

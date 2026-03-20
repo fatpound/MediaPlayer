@@ -1,8 +1,9 @@
 import QtQuick
 import QtQuick.Controls
+import FatPound.MediaPlayer 0.1
 
 Row {
-    id: controlRoot
+    id:      root
     spacing: 10
 
     property bool isPlaying: false
@@ -13,32 +14,28 @@ Row {
 
 
     ToolButton {
-        id: fullRewindButton
-        width: 48
-        height: 48
+        width:      MPTheme.controlButtonSize
+        height:     MPTheme.controlButtonSize
         background: null
-        onClicked: controlRoot.rewindClicked()
+        onClicked:  root.rewindClicked()
 
         contentItem: Image {
-            source: "qrc:/assets/rewind.png"
+            source:       "qrc:/assets/rewind.png"
             anchors.fill: parent
-            fillMode: Image.PreserveAspectFit
+            fillMode:     Image.PreserveAspectFit
         }
     }
 
-
     ToolButton {
-        id: playPauseButton
-        width: 48
-        height: 48
+        width:      MPTheme.controlButtonSize
+        height:     MPTheme.controlButtonSize
         background: null
-
-        onClicked: isPlaying ? controlRoot.pauseClicked() : controlRoot.playClicked()
+        onClicked:  root.isPlaying ? root.pauseClicked() : root.playClicked()
 
         contentItem: Image {
-            source: isPlaying ? "qrc:/assets/pause.png" : "qrc:/assets/play.png"
+            source:       root.isPlaying ? "qrc:/assets/pause.png" : "qrc:/assets/play.png"
             anchors.fill: parent
-            fillMode: Image.PreserveAspectFit
+            fillMode:     Image.PreserveAspectFit
         }
     }
 }

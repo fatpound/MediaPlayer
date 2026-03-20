@@ -15,6 +15,17 @@ qt_add_resources(MEDIA_RESOURCES resources.qrc)
 
 qt_add_executable(MediaPlayer
 
+    external/FatLibrary/_exp/GStreamer/AudioEffectChain.hpp
+    external/FatLibrary/_exp/GStreamer/AudioPitchEffect.hpp
+    external/FatLibrary/_exp/GStreamer/Common.hpp
+    external/FatLibrary/_exp/GStreamer/FatGst.hpp
+    external/FatLibrary/_exp/GStreamer/GStreamer.hpp
+    external/FatLibrary/_exp/GStreamer/IAudioEffect.hpp
+    external/FatLibrary/_exp/GStreamer/IEffectChain.hpp
+    external/FatLibrary/_exp/GStreamer/Manager.hpp
+    external/FatLibrary/_exp/GStreamer/MediaPlayer.hpp
+    external/FatLibrary/_exp/GStreamer/Pipeline.hpp
+
     include/_macros/Namespaces.hpp
     include/MediaPlayerWrapper.hpp
 
@@ -24,6 +35,11 @@ qt_add_executable(MediaPlayer
     ${MEDIA_RESOURCES}
 )
 
+set_source_files_properties(
+    MPTheme.qml
+    PROPERTIES QT_QML_SINGLETON_TYPE TRUE
+)
+
 qt_add_qml_module(MediaPlayer
     URI MediaPlayer
     VERSION 1.0
@@ -31,11 +47,12 @@ qt_add_qml_module(MediaPlayer
         resources.qrc
     QML_FILES
         Main.qml
-        MPContentView.qml
         MPMenuBar.qml
         MPPitchControlPopup.qml
         MPPlaybackControls.qml
+        MPSettingsButton.qml
         MPProgressBar.qml
+        MPTheme.qml
 )
 
 include(external/FatLibrary/_misc/FatCodex/CompileOptions.cmake)

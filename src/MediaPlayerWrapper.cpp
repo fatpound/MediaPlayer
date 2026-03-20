@@ -8,7 +8,7 @@
 
 MP_BEGIN_NAMESPACE
 
-MediaPlayerWrapper::MediaPlayerWrapper(QObject *parent)
+MediaPlayerWrapper::MediaPlayerWrapper(QObject* const parent)
     :
     QObject{parent}
 {
@@ -54,6 +54,11 @@ auto MediaPlayerWrapper::isPlaying() const -> bool
     return m_is_playing_;
 }
 
+auto MediaPlayerWrapper::isSeeking() const -> bool
+{
+    return m_is_seeking_;
+}
+
 void MediaPlayerWrapper::loadAudio(const QString& uriPath)
 {
     m_player_.LoadAudio(QString::fromUtf8(QUrl{ uriPath }.toEncoded()).toStdString());
@@ -77,6 +82,8 @@ void MediaPlayerWrapper::pause()
 
 void MediaPlayerWrapper::seek(const qint64& pos)
 {
+    m_is_seeking_ = true;
+    emit seekingChanged();
     m_player_.Seek(static_cast<std::size_t>(pos));
 }
 
@@ -99,6 +106,12 @@ void MediaPlayerWrapper::PollPosition_()
     {
         m_last_position_ = current;
         emit positionChanged();
+
+        if (m_is_seeking_)
+        {
+            m_is_seeking_ = false;
+            emit seekingChanged();
+        }
     }
 }
 

@@ -1,67 +1,105 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Dialogs
-import Custom.MediaPlayer 1.0
+import FatPound.MediaPlayer 0.1
 
 Window {
-    id: mainWindow
-    width: 800
-    height: 600
+    id:      root
+    width:   800
+    height:  600
     visible: true
-    title: qsTr("Media Player")
-    color: "#0D1B3A"
-
-    property string mediaFilePath: ""
-    property string mediaFileName: "No Audio Loaded"
+    title:   qsTr("Media Player")
+    color:   MPTheme.colBgDeep
 
     MediaPlayerWrapper {
         id: mediaPlayer
     }
 
-
     FileDialog {
-        id: fileAudioDialog
-        title: "Select Audio File"
+        id:          fileDialog
+        title:       "Select Audio File"
         nameFilters: [ "Audio Files (*.mp3 *.m4a *.flac *.wav *.alac *.aiff)" ]
-        onAccepted: {
-            mediaFilePath = currentFile.toString()
-            var fullFileName = mediaFilePath.substring(mediaFilePath.lastIndexOf("/") + 1)
-            var dotIndex = fullFileName.lastIndexOf(".")
 
-            if (dotIndex !== -1) {
-                mediaFileName = fullFileName.substring(0, dotIndex)
-                mediaPlayer.loadAudio(mediaFilePath);
-            }
+        onAccepted: {
+            var path     = currentFile.toString()
+            var fileName = decodeURIComponent(path.substring(path.lastIndexOf("/") + 1))
+
+            mediaPlayer.loadAudio(path)
+            root.title = fileName
         }
     }
 
 
     MPMenuBar {
-        id: mpMenuBar
-        width: parent.width
+        id:          mpMenuBar
+        width:       parent.width
         anchors.top: parent.top
 
-        onOpenTriggered: fileAudioDialog.open()
-        onExitTriggered: mainWindow.close()
+        onOpenTriggered: fileDialog.open()
+        onExitTriggered: root.close()
     }
 
 
-    MPContentView {
-        anchors.top: mpMenuBar.bottom
-        anchors.bottom: parent.bottom
-        anchors.horizontalCenter: parent.horizontalCenter
-        width: parent.width - 32
+    MPSettingsButton {
+        id:              settingsButton
+        anchors.top:     parent.top
+        anchors.right:   parent.right
         anchors.margins: 16
 
-        mediaFileName: mainWindow.mediaFileName
-        progress: (mediaPlayer.duration > 0) ? mediaPlayer.position / mediaPlayer.duration : 0
-        isPlaying: mediaPlayer.playing
+        onClicked_: {
+            pitchControlPopup.x = settingsButton.x + settingsButton.width  / 2 - pitchControlPopup.width
+            pitchControlPopup.y = settingsButton.y + settingsButton.height
+            pitchControlPopup.open()
+        }
+    }
+
+
+    MPPitchControlPopup {
+        id: pitchControlPopup
+
+        onPitchChanged: (value) => mediaPlayer.setPitch(value)
+    }
+
+
+    MPProgressBar {
+        id:                       mpProgressBar
+        anchors.bottom:           mpPlaybackControls.top
+        anchors.bottomMargin:     15
+        anchors.horizontalCenter: parent.horizontalCenter
+        width:                    parent.width - 48
+
+        progress: mediaPlayer.duration > 0 ? mediaPlayer.position / mediaPlayer.duration : 0.0
+        position: mediaPlayer.position
+        duration: mediaPlayer.duration
 
         onSeekRequested: (ratio) => {
-            mediaPlayer.seek(mediaPlayer.duration * ratio);
+            if (mediaPlayer.duration > 0)
+                mediaPlayer.seek(mediaPlayer.duration * ratio)
+            else
+                mpProgressBar.seekCompleted()
         }
-        onRewindRequested: mediaPlayer.fullRewind()
-        onPlayRequested: mediaPlayer.play()
-        onPauseRequested: mediaPlayer.pause()
+    }
+
+
+    MPPlaybackControls {
+        id:                       mpPlaybackControls
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.bottom:           parent.bottom
+        anchors.bottomMargin:     20
+        isPlaying:                mediaPlayer.playing
+
+        onPlayClicked:   mediaPlayer.play()
+        onPauseClicked:  mediaPlayer.pause()
+        onRewindClicked: mediaPlayer.fullRewind()
+    }
+
+
+    Connections {
+        target: mediaPlayer
+
+        function onSeekingChanged() {
+            if (!mediaPlayer.seeking)
+                mpProgressBar.seekCompleted()
+        }
     }
 }

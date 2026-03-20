@@ -1,59 +1,60 @@
 import QtQuick
 import QtQuick.Controls
+import FatPound.MediaPlayer 0.1
 
 Rectangle {
-    id: menubarRect
-    width: parent.width
-    height: 24
-    color: "#0D1B3A"
+    id:     root
+    width:  parent.width
+    height: MPTheme.menuBarHeight
+    color:  MPTheme.colBgDeep
 
     signal openTriggered()
     signal exitTriggered()
 
+
     Row {
         anchors.fill: parent
-        spacing: 0
+        spacing:      0
 
         Item {
-            id: fileMenuButton
-            width: 70
-            height: menubarRect.height
+            id:     fileMenuButton
+            width:  70
+            height: root.height
 
             Rectangle {
-                id: fileMenuRect
-                anchors.fill: parent
+                anchors.fill:      parent
                 bottomRightRadius: 6
-                color: fileMenuButtonMouseArea.containsMouse ? "#555" : "#444"
+                color:             fileMenuMouseArea.containsMouse ? MPTheme.colMenuBgHover : MPTheme.colMenuBg
             }
 
             Text {
                 anchors.centerIn: parent
-                text: "File"
-                color: "white"
+                text:             "File"
+                color:            MPTheme.colTextPrimary
             }
 
             MouseArea {
-                id: fileMenuButtonMouseArea
+                id:           fileMenuMouseArea
                 anchors.fill: parent
                 hoverEnabled: true
-                onClicked: fileMenu.open()
+                onClicked:    fileMenu.open()
             }
 
             Menu {
                 id: fileMenu
-                x: fileMenuButton.x
-                y: menubarRect.height
+                x:  fileMenuButton.x
+                y:  root.height
 
                 MenuItem {
                     text: "Open Audio"
                     height: 20
-                    onTriggered: menubarRect.openTriggered()
+                    onTriggered: root.openTriggered()
                 }
 
                 MenuItem {
                     text: "Exit"
                     height: 20
-                    onTriggered: menubarRect.exitTriggered()
+                    onTriggered: root.exitTriggered()
                 }
             }
         }
